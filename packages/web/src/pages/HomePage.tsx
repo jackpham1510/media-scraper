@@ -1,17 +1,9 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { JobStatus } from '../components/JobStatus.js';
 import { useJobStatus } from '../hooks/useJobStatus.js';
-
-function useAutoNavigate(jobId: string | null, navigate: ReturnType<typeof useNavigate>): void {
-  const { data } = useJobStatus(jobId);
-
-  if (data?.status === 'done' && jobId) {
-    navigate(`/gallery?jobId=${encodeURIComponent(jobId)}`);
-  }
-}
 
 export function HomePage(): React.JSX.Element {
   const navigate = useNavigate();
@@ -22,7 +14,13 @@ export function HomePage(): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useAutoNavigate(jobId, navigate);
+  const { data: jobStatusData } = useJobStatus(jobId);
+
+  useEffect(() => {
+    if (jobStatusData?.status === 'done' && jobId) {
+      navigate(`/gallery?jobId=${encodeURIComponent(jobId)}`);
+    }
+  }, [jobStatusData?.status, jobId, navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -119,9 +117,7 @@ export function HomePage(): React.JSX.Element {
           </form>
         </div>
 
-        {jobId && (
-          <JobStatus jobId={jobId} />
-        )}
+        {jobId && <JobStatus data={jobStatusData ?? null} />}
       </main>
     </div>
   );

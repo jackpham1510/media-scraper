@@ -1,37 +1,40 @@
-import axios from 'axios';
 import type { JobStatus, MediaFilters, MediaResponse } from '../types.js';
 
-const axiosInstance = axios.create({
-  baseURL: import.meta.env['VITE_API_BASE_URL'] ?? '',
-  headers: { 'Content-Type': 'application/json' },
-});
+const API_BASE = import.meta.env['VITE_API_BASE'] ?? '';
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  return response.json() as Promise<T>;
+}
 
 export const api = {
   async scrape(
     urls: string[],
     options?: { browserFallback?: boolean; maxScrollDepth?: number },
   ): Promise<{ jobId: string }> {
-    const response = await axiosInstance.post<{ jobId: string }>('/api/scrape', {
-      urls,
-      options,
+    return request<{ jobId: string }>('/api/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ urls, options }),
     });
-    return response.data;
   },
 
   async getJobStatus(jobId: string): Promise<JobStatus> {
-    const response = await axiosInstance.get<JobStatus>(`/api/scrape/${jobId}`);
-    return response.data;
+    return request<JobStatus>(`/api/scrape/${encodeURIComponent(jobId)}`);
   },
 
   async getMedia(filters: MediaFilters): Promise<MediaResponse> {
-    const params: Record<string, string | number> = {};
-    if (filters.page !== undefined) params['page'] = filters.page;
-    if (filters.limit !== undefined) params['limit'] = filters.limit;
-    if (filters.type !== undefined) params['type'] = filters.type;
-    if (filters.search !== undefined && filters.search !== '') params['search'] = filters.search;
-    if (filters.jobId !== undefined && filters.jobId !== '') params['jobId'] = filters.jobId;
-
-    const response = await axiosInstance.get<MediaResponse>('/api/media', { params });
-    return response.data;
+    const params = new URLSearchParams();
+    if (filters.page !== undefined) params.set('page', String(filters.page));
+    if (filters.limit !== undefined) params.set('limit', String(filters.limit));
+    if (filters.type !== undefined) params.set('type', filters.type);
+    if (filters.search !== undefined && filters.search !== '') params.set('search', filters.search);
+    if (filters.jobId !== undefined && filters.jobId !== '') params.set('jobId', filters.jobId);
+    return request<MediaResponse>(`/api/media?${params.toString()}`);
   },
 };

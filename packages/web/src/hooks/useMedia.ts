@@ -26,26 +26,35 @@ export function useMedia(filters: MediaFilters): UseQueryResult<MediaResponse> {
 
   const queryKey = ['media', effectiveFilters] as const;
 
-  const result = useQuery({
+  const queryResult = useQuery({
     queryKey,
     queryFn: () => api.getMedia(effectiveFilters),
     placeholderData: (prev) => prev,
   });
 
-  // Prefetch next page
+  // Prefetch next page when data is available and there are more pages.
+  // Depend on stable primitives instead of the effectiveFilters object reference
+  // to avoid firing on every render.
   useEffect(() => {
-    const { data } = result;
-    if (!data) return;
+    if (!queryResult.data?.pagination) return;
+    const { page, totalPages } = queryResult.data.pagination;
+    if (page >= totalPages) return;
 
-    const currentPage = effectiveFilters.page ?? 1;
-    if (currentPage < data.pagination.totalPages) {
-      const nextFilters: MediaFilters = { ...effectiveFilters, page: currentPage + 1 };
-      void queryClient.prefetchQuery({
-        queryKey: ['media', nextFilters],
-        queryFn: () => api.getMedia(nextFilters),
-      });
-    }
-  }, [result.data, effectiveFilters, queryClient]);
+    const nextFilters: MediaFilters = { ...effectiveFilters, page: page + 1 };
+    void queryClient.prefetchQuery({
+      queryKey: ['media', nextFilters],
+      queryFn: () => api.getMedia(nextFilters),
+      staleTime: 30_000,
+    });
+  }, [
+    queryResult.data?.pagination?.page,
+    queryResult.data?.pagination?.totalPages,
+    effectiveFilters.limit,
+    effectiveFilters.type,
+    effectiveFilters.search,
+    effectiveFilters.jobId,
+    queryClient,
+  ]);
 
-  return result;
+  return queryResult;
 }

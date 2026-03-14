@@ -1,9 +1,8 @@
 import type React from 'react';
-import { useJobStatus } from '../hooks/useJobStatus.js';
-import type { JobStatusValue } from '../types.js';
+import type { JobStatus as JobStatusType, JobStatusValue } from '../types.js';
 
 interface JobStatusProps {
-  jobId: string;
+  data: JobStatusType | null;
 }
 
 const STATUS_LABELS: Record<JobStatusValue, string> = {
@@ -22,21 +21,11 @@ const STATUS_COLORS: Record<JobStatusValue, string> = {
   failed: 'bg-red-100 text-red-800',
 };
 
-export function JobStatus({ jobId }: JobStatusProps): React.JSX.Element {
-  const { data, isLoading, isError } = useJobStatus(jobId);
-
-  if (isLoading) {
+export function JobStatus({ data }: JobStatusProps): React.JSX.Element {
+  if (!data) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
-      </div>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-        Failed to load job status.
       </div>
     );
   }
