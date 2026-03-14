@@ -1,0 +1,28 @@
+version: '3.9'
+
+# Overlay for production resource limits.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          memory: 580m
+          cpus: '1.0'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  mysql:
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          memory: 60m

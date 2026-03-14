@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model ScrapeJob {
+  id               String     @id @default(uuid()) @db.VarChar(36)
+  status           JobStatus  @default(pending)
+  browserFallback  Boolean    @default(false) @map("browser_fallback")
+  maxScrollDepth   Int        @default(10) @map("max_scroll_depth") @db.UnsignedTinyInt
+  urlsTotal        Int        @default(0) @map("urls_total") @db.UnsignedInt
+  urlsDone         Int        @default(0) @map("urls_done") @db.UnsignedInt
+  urlsSpaDetected  Int        @default(0) @map("urls_spa_detected") @db.UnsignedInt
+  urlsBrowserDone  Int        @default(0) @map("urls_browser_done") @db.UnsignedInt
+  createdAt        DateTime   @default(now()) @map("created_at") @db.DateTime(3)
+  finishedAt       DateTime?  @map("finished_at") @db.DateTime(3)
+
+  requests         ScrapeRequest[]
+  pages            ScrapePage[]
+  mediaItems       MediaItem[]
+
+  @@index([status], name: "idx_status")
+  @@index([createdAt], name: "idx_created_at")
+  @@map("scrape_jobs")
+}
+
+model ScrapeRequest {
+  id          BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  jobId       String       @map("job_id") @db.VarChar(36)
+  url         String       @db.Text
+  status      UrlStatus    @default(pending)
+  scrapePath  ScrapePath?  @map("scrape_path")
+  spaScore    Int?         @map("spa_score") @db.UnsignedTinyInt
+  error       String?      @db.Text
+
+  job         ScrapeJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, status], name: "idx_job_status")
+  @@index([jobId, scrapePath], name: "idx_job_path")
+  @@map("scrape_requests")
+}
+
+model ScrapePage {
+  id          BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  jobId       String      @map("job_id") @db.VarChar(36)
+  sourceUrl   String      @map("source_url") @db.VarChar(2048)
+  title       String?     @db.VarChar(1000)
+  description String?     @db.Text
+  scrapedAt   DateTime    @default(now()) @map("scraped_at") @db.DateTime(3)
+
+  job         ScrapeJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  mediaItems  MediaItem[]
+
+  @@index([jobId], name: "idx_job_id")
+  @@index([sourceUrl(255)], name: "idx_source_url")
+  @@map("scrape_pages")
+}
+
+model MediaItem {
+  id            BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  pageId        BigInt      @map("page_id") @db.UnsignedBigInt
+  jobId         String      @map("job_id") @db.VarChar(36)
+  sourceUrl     String      @map("source_url") @db.VarChar(2048)
+  mediaUrl      String      @map("media_url") @db.VarChar(2048)
+  mediaUrlHash  String      @map("media_url_hash") @db.Char(64)
+  mediaType     MediaType   @map("media_type")
+  // TODO: FULLTEXT index on alt_text must be added manually in the migration SQL.
+  // Prisma schema DSL does not support FULLTEXT indexes. Add this line to the
+  // generated migration after `prisma migrate dev`:
+  //   ALTER TABLE `media_items` ADD FULLTEXT INDEX `ft_alt_text` (`alt_text`);
+  altText       String?     @map("alt_text") @db.VarChar(1000)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+
+  page          ScrapePage  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  job           ScrapeJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaUrlHash], name: "uq_media_url_hash")
+  @@index([jobId], name: "idx_job_id")
+  @@index([mediaType], name: "idx_media_type")
+  @@index([createdAt], name: "idx_created_at")
+  @@map("media_items")
+}
+
+enum JobStatus {
+  pending
+  running
+  fast_complete
+  done
+  failed
+}
+
+enum UrlStatus {
+  pending
+  processing
+  spa_detected
+  done
+  failed
+}
+
+enum MediaType {
+  image
+  video
+}
+
+enum ScrapePath {
+  fast
+  browser
+}

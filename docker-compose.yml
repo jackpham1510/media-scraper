@@ -1,0 +1,85 @@
+version: '3.9'
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: media_scraper
+      MYSQL_USER: scraper
+      MYSQL_PASSWORD: scraper
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql.cnf:/etc/mysql/conf.d/tuning.cnf:ro
+    ports:
+      - '3306:3306'
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'scraper', '-pscraper']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://scraper:scraper@mysql:3306/media_scraper
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      NODE_ENV: production
+      SCRAPER_CONCURRENCY: 70
+      QUEUE_MAX_DEPTH: 50000
+      RATE_LIMIT_MAX: 10
+      RATE_LIMIT_WINDOW: 1m
+      UV_THREADPOOL_SIZE: 16
+    ports:
+      - '3001:3001'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3001/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '80:80'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:80']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mysql_data:
