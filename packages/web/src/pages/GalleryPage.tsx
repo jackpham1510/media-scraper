@@ -22,7 +22,7 @@ export function GalleryPage(): React.JSX.Element {
     jobId,
   };
 
-  const { data, isLoading, isError } = useMedia(filters);
+  const { data, isLoading, isFetching, isError } = useMedia(filters);
 
   const handleTypeChange = (t: 'image' | 'video' | undefined): void => {
     setTypeFilter(t);
@@ -184,6 +184,9 @@ export function GalleryPage(): React.JSX.Element {
               {totalItems} media item{totalItems !== 1 ? 's' : ''} found
             </span>
           )}
+          {isFetching && !isLoading && (
+            <span className="text-sm text-gray-500 animate-pulse">Updating...</span>
+          )}
         </div>
 
         {/* Error state */}
@@ -194,7 +197,7 @@ export function GalleryPage(): React.JSX.Element {
         )}
 
         {/* Grid */}
-        <MediaGrid items={data?.data ?? []} isLoading={isLoading} />
+        <MediaGrid items={data?.data ?? []} isLoading={isLoading} isUpdating={isFetching && !isLoading} />
 
         {/* Pagination */}
         {totalPages > 1 && (

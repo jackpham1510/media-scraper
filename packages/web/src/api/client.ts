@@ -3,9 +3,13 @@ import type { JobStatus, MediaFilters, MediaResponse } from '../types.js';
 const API_BASE = import.meta.env['VITE_API_BASE'] ?? '';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const hasBody = options?.body !== undefined;
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...options?.headers,
+    },
   });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);

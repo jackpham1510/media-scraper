@@ -38,7 +38,10 @@ export function HomePage(): React.JSX.Element {
 
     setIsSubmitting(true);
     try {
-      const result = await api.scrape(urls, { browserFallback, maxScrollDepth });
+      const result = await api.scrape(urls, {
+        browserFallback,
+        ...(browserFallback ? { maxScrollDepth } : {}),
+      });
       setJobId(result.jobId);
     } catch {
       setError('Failed to start scrape job. Please try again.');

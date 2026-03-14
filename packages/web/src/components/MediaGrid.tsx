@@ -5,6 +5,7 @@ import { MediaCard } from './MediaCard.js';
 interface MediaGridProps {
   items: MediaItem[];
   isLoading: boolean;
+  isUpdating?: boolean;
 }
 
 function LoadingSkeleton(): React.JSX.Element {
@@ -19,7 +20,7 @@ function LoadingSkeleton(): React.JSX.Element {
   );
 }
 
-export function MediaGrid({ items, isLoading }: MediaGridProps): React.JSX.Element {
+export function MediaGrid({ items, isLoading, isUpdating }: MediaGridProps): React.JSX.Element {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -39,10 +40,17 @@ export function MediaGrid({ items, isLoading }: MediaGridProps): React.JSX.Eleme
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {items.map((item) => (
-        <MediaCard key={item.id} item={item} />
-      ))}
+    <div className="relative">
+      {isUpdating && (
+        <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center">
+          <div className="text-gray-500 text-sm">Loading...</div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {items.map((item) => (
+          <MediaCard key={item.id} item={item} />
+        ))}
+      </div>
     </div>
   );
 }
