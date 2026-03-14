@@ -22,12 +22,13 @@
     "htmlparser2": "^9.1.0",
     "p-limit": "^5.0.0",
     "pino": "^9.0.0",
+    "playwright-core": "^1.58.2",
     "undici": "^6.11.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
     "@types/jest": "^29.0.0",
+    "@types/node": "^22.0.0",
     "jest": "^29.0.0",
     "prisma": "^5.11.0",
     "ts-jest": "^29.0.0",

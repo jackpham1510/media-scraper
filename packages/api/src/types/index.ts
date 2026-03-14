@@ -42,3 +42,13 @@ export interface BrowserJobPayload {
   url: string;
   maxScrollDepth: number;
 }
+
+export interface MediaInput {
+  pageId: bigint;
+  jobId: string;
+  sourceUrl: string;
+  mediaUrl: string;
+  mediaUrlHash: string;
+  mediaType: MediaType;
+  altText: string | null;
+}
