@@ -62,16 +62,20 @@ export const scrapeRoutes: FastifyPluginAsync = async (app) => {
       const browserFallback = options?.browserFallback ?? false;
       const maxScrollDepth = options?.maxScrollDepth ?? 10;
 
-      // Check queue depth against QUEUE_MAX_DEPTH — return 503 if exceeded
-      const [fastCounts, browserCounts] = await Promise.all([
+      // Check queue depth against QUEUE_MAX_DEPTH — return 503 if exceeded.
+      // Use Promise.allSettled so a Redis hiccup on one queue doesn't block requests.
+      const queueCountResults = await Promise.allSettled([
         fastQueue.getJobCounts('waiting', 'active'),
         browserQueue.getJobCounts('waiting', 'active'),
       ]);
-      const totalDepth =
-        (fastCounts['waiting'] ?? 0) +
-        (fastCounts['active'] ?? 0) +
-        (browserCounts['waiting'] ?? 0) +
-        (browserCounts['active'] ?? 0);
+
+      let totalDepth = 0;
+      for (const result of queueCountResults) {
+        if (result.status === 'fulfilled') {
+          totalDepth += (result.value['waiting'] ?? 0) + (result.value['active'] ?? 0);
+        }
+        // If rejected (Redis error), treat as 0 — don't block requests on a transient error
+      }
 
       if (totalDepth >= app.config.QUEUE_MAX_DEPTH) {
         return reply

@@ -12,12 +12,15 @@ import { mediaRepository } from '../db/repositories/media.repository.js';
 
 const BATCH_SIZE = 500;
 const BATCH_FLUSH_INTERVAL_MS = 5_000;
+const CHUNK_SIZE = 100;
 
 // Module level — created once (singleton, not per-job)
+// Parse REDIS_URL (the only Redis env var in our schema) to extract host/port.
+const _redisUrl = new URL(process.env['REDIS_URL'] ?? 'redis://localhost:6379');
 const browserQueue = new Queue('scrape:browser', {
   connection: {
-    host: process.env['REDIS_HOST'] ?? 'localhost',
-    port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
+    host: _redisUrl.hostname,
+    port: parseInt(_redisUrl.port || '6379', 10),
   },
 });
 
@@ -52,74 +55,79 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
   }, BATCH_FLUSH_INTERVAL_MS);
 
   try {
-    const results = await Promise.allSettled(
-      urls.map(async ({ id, url }) => {
-        const requestId = BigInt(id);
-        const result = await fetchUrl(url);
+    // Process URLs in chunks to bound memory usage.
+    // globalLimit (p-limit(70)) provides inner HTTP concurrency control.
+    for (let i = 0; i < urls.length; i += CHUNK_SIZE) {
+      const chunk = urls.slice(i, i + CHUNK_SIZE);
+      const results = await Promise.allSettled(
+        chunk.map(async ({ id, url }) => {
+          const requestId = BigInt(id);
+          const result = await fetchUrl(url);
 
-        if (isFetchError(result)) {
-          await requestRepository.updateStatus(requestId, 'failed', undefined, result.error);
-          await jobRepository.incrementUrlsDone(jobId, 1);
-          return;
-        }
-
-        const body = Readable.from(result.body);
-        const parsed = await parsePage(body, url);
-        const { spaSignals, mediaItems, title, description } = parsed;
-
-        const detectedAsSpa = isSpa(spaSignals, parsed.mediaItems.length);
-
-        if (detectedAsSpa) {
-          if (browserFallback) {
-            await requestRepository.updateStatus(requestId, 'spa_detected');
-            await jobRepository.incrementUrlsSpaDetected(jobId, 1);
-            spaCount++;
-            await browserQueue.add(
-              'scrape-url',
-              {
-                jobId,
-                requestId: id,
-                url,
-                maxScrollDepth,
-              },
-              { priority: 10 },
-            );
-          } else {
-            await requestRepository.updateStatus(requestId, 'failed', undefined, 'spa_detected');
+          if (isFetchError(result)) {
+            await requestRepository.updateStatus(requestId, 'failed', undefined, result.error);
             await jobRepository.incrementUrlsDone(jobId, 1);
+            return;
           }
-          return;
-        }
 
-        // Not SPA — store page and media
-        const pageId = await pageRepository.upsert(jobId, url, title, description);
+          const body = Readable.from(result.body);
+          const parsed = await parsePage(body, url);
+          const { spaSignals, mediaItems, title, description } = parsed;
 
-        for (const item of mediaItems) {
-          const mediaUrlHash = createHash('sha256').update(item.mediaUrl).digest('hex');
-          mediaBatch.push({
-            pageId,
-            jobId,
-            sourceUrl: url,
-            mediaUrl: item.mediaUrl,
-            mediaUrlHash,
-            mediaType: item.mediaType,
-            altText: item.altText,
-          });
+          const detectedAsSpa = isSpa(spaSignals, parsed.mediaItems.length);
 
-          if (mediaBatch.length >= BATCH_SIZE) {
-            await flushBatch(mediaBatch);
+          if (detectedAsSpa) {
+            if (browserFallback) {
+              await requestRepository.updateStatus(requestId, 'spa_detected');
+              await jobRepository.incrementUrlsSpaDetected(jobId, 1);
+              spaCount++;
+              await browserQueue.add(
+                'scrape-url',
+                {
+                  jobId,
+                  requestId: id,
+                  url,
+                  maxScrollDepth,
+                },
+                { priority: 10 },
+              );
+            } else {
+              await requestRepository.updateStatus(requestId, 'failed', undefined, 'spa_detected');
+              await jobRepository.incrementUrlsDone(jobId, 1);
+            }
+            return;
           }
+
+          // Not SPA — store page and media
+          const pageId = await pageRepository.upsert(jobId, url, title, description);
+
+          for (const item of mediaItems) {
+            const mediaUrlHash = createHash('sha256').update(item.mediaUrl).digest('hex');
+            mediaBatch.push({
+              pageId,
+              jobId,
+              sourceUrl: url,
+              mediaUrl: item.mediaUrl,
+              mediaUrlHash,
+              mediaType: item.mediaType,
+              altText: item.altText,
+            });
+
+            if (mediaBatch.length >= BATCH_SIZE) {
+              await flushBatch(mediaBatch);
+            }
+          }
+
+          await requestRepository.updateStatus(requestId, 'done');
+          await jobRepository.incrementUrlsDone(jobId, 1);
+        }),
+      );
+
+      // Log any unexpected rejections from this chunk
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          console.error('fastProcessor url error:', r.reason);
         }
-
-        await requestRepository.updateStatus(requestId, 'done');
-        await jobRepository.incrementUrlsDone(jobId, 1);
-      }),
-    );
-
-    // Log any unexpected rejections
-    for (const r of results) {
-      if (r.status === 'rejected') {
-        console.error('fastProcessor url error:', r.reason);
       }
     }
 

@@ -171,7 +171,8 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     await requestRepository.updateStatus(requestIdBigInt, 'failed', undefined, errorMessage);
-    // Still transition job even on failure
+    // Still transition job counters even on failure so urlsDone reaches urlsTotal
+    await jobRepository.incrementUrlsDone(jobId, 1);
     await jobRepository.incrementUrlsBrowserDone(jobId);
     throw err;
   } finally {

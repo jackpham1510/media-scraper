@@ -3,6 +3,7 @@ import type { Browser } from 'playwright-core';
 
 let browserInstance: Browser | null = null;
 let launchPromise: Promise<Browser> | null = null;
+let closing = false;
 
 async function launchBrowser(): Promise<Browser> {
   const browser = await chromium.launch({
@@ -31,8 +32,11 @@ async function launchBrowser(): Promise<Browser> {
 /**
  * Get the singleton Chromium browser instance, launching it if necessary.
  * On SIGTERM/SIGINT shutdown, call browser.close() — ONLY valid shutdown path.
+ * Throws if closeBrowser() has already been called (shutdown in progress).
  */
 export async function getBrowser(): Promise<Browser> {
+  if (closing) throw new Error('Browser is closing');
+
   if (browserInstance !== null && browserInstance.isConnected()) {
     return browserInstance;
   }
@@ -54,15 +58,21 @@ export async function getBrowser(): Promise<Browser> {
  * Close the Playwright browser instance.
  * Called by main.ts shutdown sequence — NOT via signal handlers here.
  * browser.close() must NEVER be called in the hot path.
+ * Sets the closing flag first to prevent new launches during shutdown.
  */
 export async function closeBrowser(): Promise<void> {
-  if (browserInstance !== null) {
+  closing = true;
+  // Wait for any in-flight launch to settle before closing
+  if (launchPromise !== null) {
     try {
-      await browserInstance.close();
+      await launchPromise;
     } catch {
-      // Ignore errors on shutdown
+      // Ignore launch errors during shutdown
     }
-    browserInstance = null;
-    launchPromise = null;
   }
+  if (browserInstance !== null) {
+    await browserInstance.close().catch(() => {});
+    browserInstance = null;
+  }
+  launchPromise = null;
 }
