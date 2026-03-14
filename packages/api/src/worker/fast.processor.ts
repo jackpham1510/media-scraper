@@ -17,7 +17,7 @@ const CHUNK_SIZE = 100;
 // Module level — created once (singleton, not per-job)
 // Parse REDIS_URL (the only Redis env var in our schema) to extract host/port.
 const _redisUrl = new URL(process.env['REDIS_URL'] ?? 'redis://localhost:6379');
-const browserQueue = new Queue('scrape:browser', {
+const browserQueue = new Queue('scrape-browser', {
   connection: {
     host: _redisUrl.hostname,
     port: parseInt(_redisUrl.port || '6379', 10),
@@ -34,7 +34,7 @@ async function flushBatch(buffer: MediaInput[]): Promise<void> {
 }
 
 /**
- * BullMQ processor for the scrape:fast queue.
+ * BullMQ processor for the scrape-fast queue.
  * CRITICAL: Does NOT call pLimit() — globalLimit is the process singleton in http-client.ts.
  * Uses Promise.allSettled (never Promise.all) for batch operations.
  */

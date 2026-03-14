@@ -13,15 +13,15 @@ const connection = {
 };
 
 // Two queues — exported so routes can check depth and enqueue jobs
-export const fastQueue = new Queue('scrape:fast', { connection });
-export const browserQueue = new Queue('scrape:browser', { connection });
+export const fastQueue = new Queue('scrape-fast', { connection });
+export const browserQueue = new Queue('scrape-browser', { connection });
 
 // FastScrapeWorker: concurrency 2 (two BullMQ jobs in parallel)
 // CRITICAL: p-limit(70) global singleton in http-client.ts limits actual HTTP concurrency
-const fastWorker = new Worker('scrape:fast', fastProcessor, { connection, concurrency: 2 });
+const fastWorker = new Worker('scrape-fast', fastProcessor, { connection, concurrency: 2 });
 
 // BrowserScrapeWorker: concurrency 1 — hard cap, 1 GB RAM budget has no room for 2 Chromium tabs
-const browserWorker = new Worker('scrape:browser', browserProcessor, { connection, concurrency: 1 });
+const browserWorker = new Worker('scrape-browser', browserProcessor, { connection, concurrency: 1 });
 
 // Error handlers to prevent unhandled promise rejections from killing the process
 fastWorker.on('error', (err) => {

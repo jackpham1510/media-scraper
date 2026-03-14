@@ -102,7 +102,7 @@ async function extractMediaFromPage(page: Page): Promise<RawMediaItem[]> {
 }
 
 /**
- * BullMQ processor for the scrape:browser queue.
+ * BullMQ processor for the scrape-browser queue.
  * Concurrency is 1 (enforced at Worker level) — DO NOT change.
  * ALWAYS calls page.close() in a finally block.
  */
