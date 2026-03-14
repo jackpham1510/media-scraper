@@ -50,8 +50,12 @@ export async function getBrowser(): Promise<Browser> {
   return launchPromise;
 }
 
-// Shutdown handler — ONLY place browser.close() is called
-async function shutdown(): Promise<void> {
+/**
+ * Close the Playwright browser instance.
+ * Called by main.ts shutdown sequence — NOT via signal handlers here.
+ * browser.close() must NEVER be called in the hot path.
+ */
+export async function closeBrowser(): Promise<void> {
   if (browserInstance !== null) {
     try {
       await browserInstance.close();
@@ -59,9 +63,6 @@ async function shutdown(): Promise<void> {
       // Ignore errors on shutdown
     }
     browserInstance = null;
+    launchPromise = null;
   }
-  process.exit(0);
 }
-
-process.once('SIGTERM', () => { void shutdown(); });
-process.once('SIGINT', () => { void shutdown(); });

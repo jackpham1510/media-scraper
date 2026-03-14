@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { db } from '../index.js';
 import type { UrlStatus } from '../../types/index.js';
 
@@ -23,26 +24,30 @@ export const requestRepository = {
       params.push(jobId, url);
     }
 
-    await db.$executeRawUnsafe(
-      `INSERT INTO scrape_requests (job_id, url, status) VALUES ${valuePlaceholders}`,
-      ...params,
-    );
+    // Wrap INSERT + LAST_INSERT_ID() + SELECT in a single interactive transaction
+    // so all three queries run on the same connection (LAST_INSERT_ID() is session-scoped).
+    const rows = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO scrape_requests (job_id, url, status) VALUES ${valuePlaceholders}`,
+        ...params,
+      );
 
-    // Use LAST_INSERT_ID() to get the first auto-generated ID from this batch insert
-    const lastIdRaw: unknown = await db.$queryRawUnsafe(
-      'SELECT LAST_INSERT_ID() as id',
-    );
-    const lastIdRows = lastIdRaw as Array<{ id: bigint }>;
-    const firstId = lastIdRows[0]?.id ?? 0n;
-    const count = BigInt(urls.length);
+      // LAST_INSERT_ID() returns the first ID assigned to the batch INSERT
+      const lastIdRaw: unknown = await tx.$queryRawUnsafe(
+        'SELECT LAST_INSERT_ID() as id',
+      );
+      const lastIdResult = lastIdRaw as Array<{ id: bigint }>;
+      const firstId = lastIdResult[0]?.id ?? 0n;
+      const count = BigInt(urls.length);
 
-    // Fetch only the newly inserted rows using the ID range
-    const rawRows: unknown = await db.$queryRawUnsafe(
-      'SELECT id, url FROM scrape_requests WHERE id >= ? AND id < ? ORDER BY id ASC',
-      firstId,
-      firstId + count,
-    );
-    const rows = rawRows as RawRequestRow[];
+      // Fetch only the newly inserted rows using the contiguous ID range
+      const insertedRaw: unknown = await tx.$queryRawUnsafe(
+        'SELECT id, url FROM scrape_requests WHERE id >= ? AND id < ? ORDER BY id ASC',
+        firstId,
+        firstId + count,
+      );
+      return insertedRaw as RawRequestRow[];
+    });
 
     return rows;
   },

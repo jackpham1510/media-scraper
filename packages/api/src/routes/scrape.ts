@@ -86,9 +86,6 @@ export const scrapeRoutes: FastifyPluginAsync = async (app) => {
       // Bulk insert URLs into scrape_requests and get IDs back
       const insertedRequests = await requestRepository.bulkInsert(jobId, urls);
 
-      // Set job to running now that requests are created
-      await jobRepository.updateStatus(jobId, 'running');
-
       // Build BullMQ payload — BigInt IDs serialized to number for JSON
       const urlsPayload = insertedRequests.map((r) => ({
         id: Number(r.id),

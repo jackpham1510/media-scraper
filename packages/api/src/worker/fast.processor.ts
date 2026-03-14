@@ -38,6 +38,9 @@ async function flushBatch(buffer: MediaInput[]): Promise<void> {
 export async function fastProcessor(job: { data: FastJobPayload }): Promise<void> {
   const { jobId, browserFallback, maxScrollDepth, urls } = job.data;
 
+  // Transition to 'running' at the start of processing (worker picked up the job)
+  await jobRepository.updateStatus(jobId, 'running');
+
   const mediaBatch: MediaInput[] = [];
   let spaCount = 0;
 

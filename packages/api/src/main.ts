@@ -1,11 +1,12 @@
 import Fastify from 'fastify';
 import fastifyRateLimit from '@fastify/rate-limit';
-import IORedis from 'ioredis';
+import { Redis as IORedis } from 'ioredis';
 import { parseEnv } from './config/env.js';
 import { healthRoutes } from './routes/health.js';
 import { scrapeRoutes } from './routes/scrape.js';
 import { mediaRoutes } from './routes/media.js';
 import { closeWorkers } from './worker/index.js';
+import { closeBrowser } from './worker/playwright.singleton.js';
 import { httpAgent } from './scraper/http-client.js';
 import { db } from './db/index.js';
 
@@ -37,9 +38,9 @@ await app.register(scrapeRoutes);
 await app.register(mediaRoutes);
 
 // Graceful shutdown handler.
-// NOTE: playwright.singleton.ts registers its own SIGTERM/SIGINT handlers that close
-// the Playwright browser and call process.exit(0). Both handler sets fire — we do
-// cleanup here (HTTP server, workers, Redis, DB) and the singleton handles the browser.
+// All cleanup is centralized here: HTTP server, BullMQ workers, Playwright browser,
+// undici agent, Redis, and Prisma. playwright.singleton.ts does NOT register its own
+// signal handlers — closeBrowser() is called explicitly in the sequence below.
 let isShuttingDown = false;
 
 async function shutdown(signal: string): Promise<void> {
@@ -55,6 +56,9 @@ async function shutdown(signal: string): Promise<void> {
     // Close BullMQ workers (waits for in-flight jobs to finish)
     await closeWorkers();
 
+    // Close Playwright browser (if it was ever launched)
+    await closeBrowser();
+
     // Close undici HTTP agent
     await httpAgent.close();
 
@@ -65,8 +69,6 @@ async function shutdown(signal: string): Promise<void> {
     await db.$disconnect();
 
     app.log.info('Graceful shutdown complete');
-    // Note: process.exit(0) is called by playwright.singleton.ts shutdown handler.
-    // If the browser was never launched, we call it here.
     process.exit(0);
   } catch (err) {
     app.log.error({ err }, 'Error during shutdown');

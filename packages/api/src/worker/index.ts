@@ -37,10 +37,8 @@ browserWorker.on('error', (err) => {
  * then close queue connections.
  */
 export async function closeWorkers(): Promise<void> {
-  await Promise.allSettled([
-    fastWorker.close(),
-    browserWorker.close(),
-    fastQueue.close(),
-    browserQueue.close(),
-  ]);
+  // Close workers first — wait for in-flight jobs to finish before closing queue connections
+  await Promise.allSettled([fastWorker.close(), browserWorker.close()]);
+  // Then close queue connections
+  await Promise.allSettled([fastQueue.close(), browserQueue.close()]);
 }
