@@ -22,6 +22,9 @@ RUN npm run build -w packages/api
 # ---
 FROM node:22-alpine AS runner
 
+# Prisma migration engine requires OpenSSL at runtime on Alpine
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # Production deps only
