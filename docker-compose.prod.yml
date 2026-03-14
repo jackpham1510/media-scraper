@@ -5,11 +5,8 @@ version: '3.9'
 
 services:
   api:
-    deploy:
-      resources:
-        limits:
-          memory: 580m
-          cpus: '1.0'
+    mem_limit: 580m
+    cpus: 1.0
     ulimits:
       nofile:
         soft: 65536
@@ -19,13 +16,7 @@ services:
       UV_THREADPOOL_SIZE: 16
 
   mysql:
-    deploy:
-      resources:
-        limits:
-          memory: 300m
+    mem_limit: 300m
 
   redis:
-    deploy:
-      resources:
-        limits:
-          memory: 60m
+    mem_limit: 60m

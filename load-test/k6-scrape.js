@@ -12,6 +12,8 @@ export const options = {
     'http_req_duration{name:post_scrape}': ['p(95)<500'],
     // Error rate < 0.5%
     http_req_failed: ['rate<0.005'],
+    // All jobs must reach terminal status within 120s (>99.5% success rate)
+    'checks{check:job completed within 120s}': ['rate>0.995'],
   },
 };
 
