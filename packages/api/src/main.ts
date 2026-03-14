@@ -1,5 +1,4 @@
 import Fastify from 'fastify';
-import fastifyRateLimit from '@fastify/rate-limit';
 import { Redis as IORedis } from 'ioredis';
 import { parseEnv } from './config/env.js';
 import { healthRoutes } from './routes/health.js';
@@ -18,19 +17,12 @@ const app = Fastify({
   },
 });
 
-// Create the ioredis client for rate-limiting and job status caching
+// Create the ioredis client for job status caching
 const redis = new IORedis(env.REDIS_URL);
 
 // Decorate Fastify instance with shared resources accessible in route handlers
 app.decorate('redis', redis);
 app.decorate('config', env);
-
-// Rate limiting via @fastify/rate-limit with Redis backend
-await app.register(fastifyRateLimit, {
-  max: env.RATE_LIMIT_MAX,
-  timeWindow: env.RATE_LIMIT_WINDOW,
-  redis,
-});
 
 // Register routes
 await app.register(healthRoutes);

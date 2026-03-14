@@ -7,8 +7,6 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   SCRAPER_CONCURRENCY: z.coerce.number().int().min(1).max(200).default(70),
   QUEUE_MAX_DEPTH: z.coerce.number().int().positive().default(50000),
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
-  RATE_LIMIT_WINDOW: z.string().default('1m'),
 });
 
 export type Env = z.infer<typeof envSchema>;
