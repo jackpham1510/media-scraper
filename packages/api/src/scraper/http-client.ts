@@ -3,10 +3,6 @@ import pLimit from 'p-limit';
 
 export const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB
 
-// DNS cache with 5-minute TTL
-const dnsCache = new Map<string, { address: string; family: 4 | 6; expiry: number }>();
-const DNS_TTL_MS = 5 * 60 * 1000;
-
 // undici Agent singleton
 export const httpAgent = new Agent({
   connections: 10,
@@ -14,26 +10,6 @@ export const httpAgent = new Agent({
   bodyTimeout: 30_000,
   connect: {
     timeout: 5_000,
-    lookup: (hostname, _options, callback) => {
-      const cached = dnsCache.get(hostname);
-      if (cached !== undefined && cached.expiry > Date.now()) {
-        callback(null, cached.address, cached.family);
-        return;
-      }
-      // Fall back to default DNS resolution
-      import('node:dns').then(({ lookup }) => {
-        lookup(hostname, { family: 4 }, (err, address, family) => {
-          if (err) {
-            callback(err, '', 4);
-            return;
-          }
-          dnsCache.set(hostname, { address, family: family as 4 | 6, expiry: Date.now() + DNS_TTL_MS });
-          callback(null, address, family as 4 | 6);
-        });
-      }).catch((importErr: unknown) => {
-        callback(importErr instanceof Error ? importErr : new Error(String(importErr)), '', 4);
-      });
-    },
   },
 });
 
@@ -78,7 +54,7 @@ export async function fetchUrl(url: string): Promise<FetchResult> {
         path: parsed.pathname + parsed.search,
         method: 'GET',
         headers: {
-          'User-Agent': 'MediaScraper/1.0 (+https://github.com/media-scraper)',
+          'User-Agent': 'Mozilla/5.0 (compatible; MediaScraper/1.0)',
           Accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
         },

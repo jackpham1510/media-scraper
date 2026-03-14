@@ -190,8 +190,9 @@ export async function parsePage(body: Readable, baseUrl: string): Promise<Parsed
     },
   });
 
-  // Byte-counter Transform to enforce MAX_BODY_BYTES limit
+  // Byte-counter + HTML collector Transform to enforce MAX_BODY_BYTES limit
   let bytesRead = 0;
+  const htmlChunks: Buffer[] = [];
   const sizeGuard = new Transform({
     transform(chunk: Buffer, _encoding, callback) {
       bytesRead += chunk.length;
@@ -199,6 +200,7 @@ export async function parsePage(body: Readable, baseUrl: string): Promise<Parsed
         callback(new Error('response_too_large'));
         return;
       }
+      htmlChunks.push(chunk);
       callback(null, chunk);
     },
   });
@@ -206,6 +208,7 @@ export async function parsePage(body: Readable, baseUrl: string): Promise<Parsed
   await pipeline(body, sizeGuard, parserWritable);
 
   signals.mediaCount = mediaItems.length;
+  const rawHtml = Buffer.concat(htmlChunks).toString('utf8');
 
-  return { title, description, mediaItems, spaSignals: signals };
+  return { title, description, rawHtml, mediaItems, spaSignals: signals };
 }

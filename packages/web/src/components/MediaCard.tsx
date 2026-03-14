@@ -1,67 +1,93 @@
 import type React from 'react';
 import { useState } from 'react';
+import { ImageOff, ExternalLink, ZoomIn } from 'lucide-react';
 import type { MediaItem } from '../types.js';
+import { Badge } from './ui/badge.js';
+import { cn } from '../lib/utils.js';
 
 interface MediaCardProps {
   item: MediaItem;
+  onClick?: () => void;
 }
 
-export function MediaCard({ item }: MediaCardProps): React.JSX.Element {
+export function MediaCard({ item, onClick }: MediaCardProps): React.JSX.Element {
   const { mediaUrl, mediaType, altText, sourceUrl } = item;
   const [imgError, setImgError] = useState(false);
 
-  // Truncate source URL for display
-  let displayUrl: string;
+  let displayHost: string;
   try {
-    const parsed = new URL(sourceUrl);
-    displayUrl = parsed.hostname + parsed.pathname;
-    if (displayUrl.length > 50) {
-      displayUrl = displayUrl.slice(0, 47) + '...';
-    }
+    displayHost = new URL(sourceUrl).hostname;
   } catch {
-    displayUrl = sourceUrl.slice(0, 50);
+    displayHost = sourceUrl.slice(0, 30);
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-      {mediaType === 'image' ? (
-        imgError ? (
-          <div className="w-full h-48 bg-gray-100 rounded-t-lg flex items-center justify-center">
-            <span className="text-gray-400 text-sm">Image unavailable</span>
-          </div>
+    <div
+      className="group overflow-hidden rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+      onClick={onClick}
+    >
+      {/* Media area */}
+      <div className="relative overflow-hidden bg-muted aspect-video">
+        {mediaType === 'image' ? (
+          imgError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground">
+              <ImageOff className="h-8 w-8 opacity-40" />
+              <span className="text-xs">Image unavailable</span>
+            </div>
+          ) : (
+            <img
+              src={mediaUrl}
+              alt={altText ?? ''}
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-scale-down transition-transform duration-300 group-hover:scale-105"
+              onError={() => setImgError(true)}
+            />
+          )
         ) : (
-          <img
+          <video
             src={mediaUrl}
-            alt={altText ?? ''}
-            loading="lazy"
-            className="w-full h-48 object-cover rounded-t-lg"
-            onError={() => setImgError(true)}
+            preload="none"
+            className="absolute inset-0 h-full w-full object-cover bg-black"
+            onClick={(e) => e.stopPropagation()}
           />
-        )
-      ) : (
-        <video
-          src={mediaUrl}
-          controls
-          preload="none"
-          className="w-full h-48 object-cover rounded-t-lg bg-gray-900"
-        />
-      )}
-      <div className="p-3 space-y-1">
-        <p className="text-xs text-gray-500 truncate" title={sourceUrl}>
-          {displayUrl}
-        </p>
-        {altText && (
-          <p className="text-xs text-gray-700 truncate" title={altText}>
+        )}
+
+        {/* Expand hint on hover */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+          <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-80 transition-opacity duration-200 drop-shadow-lg" />
+        </div>
+
+        {/* Type badge overlay */}
+        <div className="absolute top-2 right-2">
+          <Badge
+            variant={mediaType === 'image' ? 'secondary' : 'default'}
+            className={cn(
+              'text-xs shadow-sm',
+              mediaType === 'video' && 'bg-violet-100 text-violet-800 border-violet-200',
+            )}
+          >
+            {mediaType}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Info area */}
+      <div className="p-3 space-y-1.5">
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group/link"
+          title={sourceUrl}
+        >
+          <span className="truncate">{displayHost}</span>
+          <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+        </a>
+        {altText !== null && altText !== '' && (
+          <p className="text-xs text-foreground/70 truncate" title={altText}>
             {altText}
           </p>
         )}
-        <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
-          mediaType === 'image'
-            ? 'bg-blue-50 text-blue-700'
-            : 'bg-purple-50 text-purple-700'
-        }`}>
-          {mediaType}
-        </span>
       </div>
     </div>
   );

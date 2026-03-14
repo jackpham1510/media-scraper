@@ -6,15 +6,17 @@ export const pageRepository = {
     sourceUrl: string,
     title: string | null,
     description: string | null,
+    fetchedHtml: string | null,
   ): Promise<bigint> {
     // Atomic insert — ignore duplicate (jobId, sourceUrl) pairs
     await db.$executeRawUnsafe(
-      `INSERT IGNORE INTO scrape_pages (job_id, source_url, title, description, scraped_at)
-       VALUES (?, ?, ?, ?, NOW(3))`,
+      `INSERT IGNORE INTO scrape_pages (job_id, source_url, title, description, fetched_html, scraped_at)
+       VALUES (?, ?, ?, ?, ?, NOW(3))`,
       jobId,
       sourceUrl,
       title,
       description,
+      fetchedHtml,
     );
 
     // Fetch the id (either newly inserted or existing row)

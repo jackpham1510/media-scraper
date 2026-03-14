@@ -72,7 +72,7 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
 
           const body = Readable.from(result.body);
           const parsed = await parsePage(body, url);
-          const { spaSignals, mediaItems, title, description } = parsed;
+          const { spaSignals, mediaItems, title, description, rawHtml } = parsed;
 
           const detectedAsSpa = isSpa(spaSignals, parsed.mediaItems.length);
 
@@ -99,7 +99,7 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
           }
 
           // Not SPA — store page and media
-          const pageId = await pageRepository.upsert(jobId, url, title, description);
+          const pageId = await pageRepository.upsert(jobId, url, title, description, rawHtml);
 
           for (const item of mediaItems) {
             const mediaUrlHash = createHash('sha256').update(item.mediaUrl).digest('hex');

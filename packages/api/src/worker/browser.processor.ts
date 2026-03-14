@@ -143,12 +143,14 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
     });
 
     const rawMediaItems = await extractMediaFromPage(page);
+    const pageHtml = await page.content();
 
     const pageId = await pageRepository.upsert(
       jobId,
       url,
       pageTitle || null,
       pageDescription,
+      pageHtml,
     );
 
     if (rawMediaItems.length > 0) {

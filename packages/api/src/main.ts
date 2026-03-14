@@ -12,9 +12,15 @@ import { db } from './db/index.js';
 const env = parseEnv();
 
 const app = Fastify({
-  logger: {
-    level: env.NODE_ENV === 'production' ? 'info' : 'debug',
-  },
+  logger: env.NODE_ENV === 'production'
+    ? { level: 'info' }
+    : {
+        level: 'debug',
+        transport: {
+          target: 'pino-pretty',
+          options: { colorize: true, translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' },
+        },
+      },
 });
 
 // Create the ioredis client for job status caching
@@ -33,17 +39,6 @@ await app.register(mediaRoutes);
 app.addHook('onSend', async (request, reply) => {
   reply.header('x-request-id', request.id as string);
 });
-
-// Log memory usage every 30s (unref so it doesn't prevent process exit)
-setInterval(() => {
-  const mem = process.memoryUsage();
-  app.log.info({
-    rss: Math.round(mem.rss / 1024 / 1024),
-    heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
-    heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
-    external: Math.round(mem.external / 1024 / 1024),
-  }, 'memory usage (MB)');
-}, 30_000).unref();
 
 // Graceful shutdown handler.
 // All cleanup is centralized here: HTTP server, BullMQ workers, Playwright browser,

@@ -21,6 +21,7 @@ export interface SpaSignals {
 export interface ParsedPage {
   title: string | null;
   description: string | null;
+  rawHtml: string;
   mediaItems: Array<{
     mediaUrl: string;
     mediaType: MediaType;

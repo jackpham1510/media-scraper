@@ -5,7 +5,7 @@ export interface MediaFilters {
   page: number;    // 1-based
   limit: number;   // max 100
   type?: 'image' | 'video';
-  search?: string; // FULLTEXT search on alt_text
+  search?: string; // LIKE substring match on alt_text OR source_url
   jobId?: string;
 }
 
@@ -106,9 +106,9 @@ export const mediaRepository = {
     }
 
     if (search !== undefined && search.length > 0) {
-      // FULLTEXT index on alt_text must exist (added manually in migration)
-      conditions.push('MATCH(alt_text) AGAINST(? IN BOOLEAN MODE)');
-      conditionParams.push(search);
+      // Substring match on alt_text and source_url
+      conditions.push('(alt_text LIKE ? OR source_url LIKE ?)');
+      conditionParams.push(`%${search}%`, `%${search}%`);
     }
 
     const whereClause =
@@ -117,7 +117,7 @@ export const mediaRepository = {
     const dataQuery = `SELECT id, page_id, job_id, source_url, media_url, media_type, alt_text, created_at
       FROM media_items
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, id DESC
       LIMIT ? OFFSET ?`;
 
     const countQuery = `SELECT COUNT(*) AS total FROM media_items ${whereClause}`;

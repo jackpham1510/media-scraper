@@ -13,7 +13,9 @@ export function useJobStatus(jobId: string | null): UseQueryResult<JobStatus> {
       return api.getJobStatus(jobId);
     },
     enabled: jobId !== null,
+    retry: false,
     refetchInterval: (query) => {
+      if (query.state.status === 'error') return false;
       const status = query.state.data?.status;
       if (status === undefined) return 2000;
       return ACTIVE_STATUSES.has(status) ? 2000 : false;

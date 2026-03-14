@@ -50,6 +50,7 @@ model ScrapePage {
   sourceUrl   String      @map("source_url") @db.VarChar(2048)
   title       String?     @db.VarChar(1000)
   description String?     @db.Text
+  fetchedHtml String?     @map("fetched_html") @db.MediumText
   scrapedAt   DateTime    @default(now()) @map("scraped_at") @db.DateTime(3)
 
   job         ScrapeJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
