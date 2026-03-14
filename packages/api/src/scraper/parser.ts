@@ -59,6 +59,7 @@ export async function parsePage(body: Readable, baseUrl: string): Promise<Parsed
   let description: string | null = null;
   let inTitle = false;
   let inScript = false;
+  let inStyle = false;
   let inNoscript = false;
   let titleBuffer = '';
   let scriptBuffer = '';
@@ -84,6 +85,10 @@ export async function parsePage(body: Readable, baseUrl: string): Promise<Parsed
         signals.scriptTagCount++;
         inScript = true;
         scriptBuffer = '';
+      }
+
+      if (lname === 'style') {
+        inStyle = true;
       }
 
       if (lname === 'noscript') {
@@ -131,8 +136,10 @@ export async function parsePage(body: Readable, baseUrl: string): Promise<Parsed
       if (inNoscript) {
         noscriptBuffer += text;
       }
-      // Accumulate visible text length (rough estimate)
-      signals.bodyTextLength += text.trimStart().length;
+      // Accumulate visible text length (rough estimate), excluding script/style content
+      if (!inScript && !inStyle) {
+        signals.bodyTextLength += text.trimStart().length;
+      }
     },
 
     onclosetag(name: string) {
@@ -153,6 +160,10 @@ export async function parsePage(body: Readable, baseUrl: string): Promise<Parsed
           inScript = false;
           scriptBuffer = '';
         }
+      }
+
+      if (lname === 'style') {
+        inStyle = false;
       }
 
       if (lname === 'noscript') {

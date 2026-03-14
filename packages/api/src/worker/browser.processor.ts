@@ -115,11 +115,16 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
 
   try {
     // Block unnecessary resource types to save bandwidth and RAM
-    await page.route('**/*', (route) => {
-      if (BLOCKED_RESOURCE_TYPES.has(route.request().resourceType())) {
-        void route.abort();
-      } else {
-        void route.continue();
+    await page.route('**/*', async (route) => {
+      const resourceType = route.request().resourceType();
+      try {
+        if (BLOCKED_RESOURCE_TYPES.has(resourceType)) {
+          await route.abort();
+        } else {
+          await route.continue();
+        }
+      } catch {
+        // Ignore route errors during page teardown (e.g., 'Target closed')
       }
     });
 

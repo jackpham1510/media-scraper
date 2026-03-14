@@ -41,9 +41,8 @@ class CircuitBreaker {
   recordFailure(domain: string): void {
     const state = this.getState(domain);
 
-    // If already tripped, extend the window
     if (state.trippedAt !== null) {
-      state.trippedAt = Date.now();
+      // Already tripped — don't extend the cooldown window
       return;
     }
 

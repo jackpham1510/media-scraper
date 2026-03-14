@@ -28,10 +28,19 @@ export const requestRepository = {
       ...params,
     );
 
-    // Fetch the inserted rows back by job_id, ordered ascending so index matches url order
+    // Use LAST_INSERT_ID() to get the first auto-generated ID from this batch insert
+    const lastIdRaw: unknown = await db.$queryRawUnsafe(
+      'SELECT LAST_INSERT_ID() as id',
+    );
+    const lastIdRows = lastIdRaw as Array<{ id: bigint }>;
+    const firstId = lastIdRows[0]?.id ?? 0n;
+    const count = BigInt(urls.length);
+
+    // Fetch only the newly inserted rows using the ID range
     const rawRows: unknown = await db.$queryRawUnsafe(
-      `SELECT id, url FROM scrape_requests WHERE job_id = ? ORDER BY id ASC`,
-      jobId,
+      'SELECT id, url FROM scrape_requests WHERE id >= ? AND id < ? ORDER BY id ASC',
+      firstId,
+      firstId + count,
     );
     const rows = rawRows as RawRequestRow[];
 

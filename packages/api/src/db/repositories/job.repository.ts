@@ -109,7 +109,7 @@ export const jobRepository = {
              WHEN urls_browser_done + 1 >= urls_spa_detected THEN NOW(3)
              ELSE finished_at
            END
-       WHERE id = ? AND status = 'fast_complete'`,
+       WHERE id = ? AND status IN ('fast_complete', 'running')`,
       id,
     );
   },
