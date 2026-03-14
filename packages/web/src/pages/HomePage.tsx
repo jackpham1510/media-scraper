@@ -114,14 +114,14 @@ export function HomePage(): React.JSX.Element {
               className="relative gap-2"
             >
               <Briefcase className="h-4 w-4" />
-              <span className="hidden sm:inline">Active Jobs</span>
+              <span className="hidden sm:inline">Activity</span>
               {activeJobCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
                   {activeJobCount}
                 </span>
               )}
             </Button>
-            <Button size="sm" onClick={() => setScrapeOpen(true)} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button size="sm" onClick={() => setScrapeOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
               <span>New Scrape</span>
             </Button>

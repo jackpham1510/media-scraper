@@ -2,6 +2,7 @@ import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { X, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { useJobStatus } from '../hooks/useJobStatus.js';
 import type { TrackedJob } from '../hooks/useActiveJobs.js';
 import type { JobStatusValue } from '../types.js';
@@ -41,6 +42,7 @@ function JobRow({ trackedJob, onRemove }: JobRowProps): React.JSX.Element {
   const { jobId } = trackedJob;
   const { data: status } = useJobStatus(jobId);
   const prevStatusRef = useRef<JobStatusValue | undefined>(undefined);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const current = status?.status;
@@ -50,6 +52,7 @@ function JobRow({ trackedJob, onRemove }: JobRowProps): React.JSX.Element {
         toast.success('Scraping complete', {
           description: `Job ${jobId.slice(0, 8)}… finished — ${status?.urlsDone ?? 0} URLs scraped`,
         });
+        void queryClient.invalidateQueries({ queryKey: ['media'] });
       } else if (current === 'failed') {
         toast.error('Scraping failed', { description: `Job ${jobId.slice(0, 8)}…` });
       }
@@ -109,7 +112,7 @@ export function JobsDrawer({ open, onOpenChange, trackedJobs, onRemoveJob }: Job
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-80 sm:max-w-sm flex flex-col">
         <SheetHeader>
-          <SheetTitle>Active Jobs</SheetTitle>
+          <SheetTitle>Activity</SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto mt-4 space-y-3">

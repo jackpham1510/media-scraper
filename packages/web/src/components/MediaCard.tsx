@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { ImageOff, ExternalLink, ZoomIn } from 'lucide-react';
 import type { MediaItem } from '../types.js';
 import { Badge } from './ui/badge.js';
-import { cn } from '../lib/utils.js';
 
 interface MediaCardProps {
   item: MediaItem;
@@ -61,10 +60,7 @@ export function MediaCard({ item, onClick }: MediaCardProps): React.JSX.Element 
         <div className="absolute top-2 right-2">
           <Badge
             variant={mediaType === 'image' ? 'secondary' : 'default'}
-            className={cn(
-              'text-xs shadow-sm',
-              mediaType === 'video' && 'bg-violet-100 text-violet-800 border-violet-200',
-            )}
+            className="text-xs shadow-sm"
           >
             {mediaType}
           </Badge>
