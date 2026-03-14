@@ -2,54 +2,10 @@ import { createHash } from 'node:crypto';
 import type { Page } from 'playwright-core';
 import { getBrowser } from './playwright.singleton.js';
 import type { BrowserJobPayload, MediaInput, MediaType } from '../types/index.js';
-
-// TODO: Replace with real implementations once db/repositories/ is created
-// import { jobRepository } from '../db/repositories/job.repository.js';
-// import { mediaRepository } from '../db/repositories/media.repository.js';
-// import { scrapeRequestRepository } from '../db/repositories/scrape-request.repository.js';
-// import { scrapePageRepository } from '../db/repositories/scrape-page.repository.js';
-
-// TODO: Replace these stubs with real repository calls once db/repositories/ exists
-const jobRepository = {
-  async incrementBrowserDoneAndTransition(_jobId: string): Promise<void> {
-    // TODO: atomic SQL:
-    // UPDATE scrape_jobs
-    //   SET urls_browser_done = urls_browser_done + 1,
-    //       status = CASE WHEN urls_browser_done + 1 >= urls_spa_detected THEN 'done' ELSE status END,
-    //       finished_at = CASE WHEN urls_browser_done + 1 >= urls_spa_detected THEN NOW() ELSE NULL END
-    //   WHERE id = ?
-  },
-  async incrementUrlsDone(_jobId: string): Promise<void> {
-    // TODO: UPDATE scrape_jobs SET urls_done = urls_done + 1 WHERE id = ?
-  },
-};
-
-const scrapeRequestRepository = {
-  async markBrowserDone(_requestId: number): Promise<void> {
-    // TODO: UPDATE scrape_requests SET status = 'done', scrape_path = 'browser' WHERE id = ?
-  },
-  async markFailed(_requestId: number, _error: string): Promise<void> {
-    // TODO: UPDATE scrape_requests SET status = 'failed', error = ? WHERE id = ?
-  },
-};
-
-const scrapePageRepository = {
-  async insertPage(
-    _jobId: string,
-    _sourceUrl: string,
-    _title: string | null,
-    _description: string | null,
-  ): Promise<bigint> {
-    // TODO: INSERT INTO scrape_pages ... RETURNING id
-    return BigInt(0);
-  },
-};
-
-const mediaRepository = {
-  async batchUpsert(_items: MediaInput[]): Promise<void> {
-    // TODO: INSERT INTO media_items ... ON DUPLICATE KEY UPDATE ...
-  },
-};
+import { jobRepository } from '../db/repositories/job.repository.js';
+import { requestRepository } from '../db/repositories/request.repository.js';
+import { pageRepository } from '../db/repositories/page.repository.js';
+import { mediaRepository } from '../db/repositories/media.repository.js';
 
 const BLOCKED_RESOURCE_TYPES = new Set(['stylesheet', 'font', 'image']);
 
@@ -152,6 +108,7 @@ async function extractMediaFromPage(page: Page): Promise<RawMediaItem[]> {
  */
 export async function browserProcessor(job: { data: BrowserJobPayload }): Promise<void> {
   const { jobId, requestId, url, maxScrollDepth } = job.data;
+  const requestIdBigInt = BigInt(requestId);
 
   const browser = await getBrowser();
   const page = await browser.newPage();
@@ -182,7 +139,7 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
 
     const rawMediaItems = await extractMediaFromPage(page);
 
-    const pageId = await scrapePageRepository.insertPage(
+    const pageId = await pageRepository.upsert(
       jobId,
       url,
       pageTitle || null,
@@ -200,17 +157,17 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
         altText: item.altText,
       }));
 
-      await mediaRepository.batchUpsert(mediaInputs);
+      await mediaRepository.upsertBatch(mediaInputs);
     }
 
-    await scrapeRequestRepository.markBrowserDone(requestId);
-    await jobRepository.incrementUrlsDone(jobId);
-    await jobRepository.incrementBrowserDoneAndTransition(jobId);
+    await requestRepository.updateStatus(requestIdBigInt, 'done');
+    await jobRepository.incrementUrlsDone(jobId, 1);
+    await jobRepository.incrementUrlsBrowserDone(jobId);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    await scrapeRequestRepository.markFailed(requestId, errorMessage);
+    await requestRepository.updateStatus(requestIdBigInt, 'failed', undefined, errorMessage);
     // Still transition job even on failure
-    await jobRepository.incrementBrowserDoneAndTransition(jobId);
+    await jobRepository.incrementUrlsBrowserDone(jobId);
     throw err;
   } finally {
     // ALWAYS close the page — even on error

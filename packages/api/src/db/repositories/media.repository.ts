@@ -1,14 +1,5 @@
 import { db } from '../index.js';
-import { createHash } from 'node:crypto';
-
-export interface MediaInput {
-  pageId: bigint;
-  jobId: string;
-  sourceUrl: string;
-  mediaUrl: string;
-  mediaType: 'image' | 'video';
-  altText: string | null;
-}
+import type { MediaInput } from '../../types/index.js';
 
 export interface MediaFilters {
   page: number;    // 1-based
@@ -45,10 +36,6 @@ interface CountRow {
   total: bigint;
 }
 
-function hashMediaUrl(mediaUrl: string): string {
-  return createHash('sha256').update(mediaUrl).digest('hex');
-}
-
 function rowToDto(row: RawMediaRow): MediaItemDto {
   return {
     id: row.id,
@@ -74,13 +61,12 @@ export const mediaRepository = {
     const params: (bigint | string | null)[] = [];
 
     for (const item of items) {
-      const hash = hashMediaUrl(item.mediaUrl);
       params.push(
         item.pageId,
         item.jobId,
         item.sourceUrl,
         item.mediaUrl,
-        hash,
+        item.mediaUrlHash,
         item.mediaType,
         item.altText,
       );

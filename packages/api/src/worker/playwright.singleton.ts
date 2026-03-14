@@ -18,12 +18,11 @@ async function launchBrowser(): Promise<Browser> {
   });
 
   browser.on('disconnected', () => {
+    // Null out state so getBrowser() relaunches lazily on next request.
+    // Do NOT call getBrowser() here — that causes a race condition between
+    // the disconnect handler and any concurrent getBrowser() call.
     browserInstance = null;
     launchPromise = null;
-    // Automatically relaunch on disconnect
-    getBrowser().catch((err: unknown) => {
-      console.error('Failed to relaunch browser after disconnect:', err);
-    });
   });
 
   return browser;

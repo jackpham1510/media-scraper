@@ -46,8 +46,8 @@ describe('CircuitBreaker', () => {
     }
     expect(circuitBreaker.canRequest(domain)).toBe(false);
 
-    // Advance time by 60 seconds
-    jest.advanceTimersByTime(60_000);
+    // Advance system time by 60 seconds
+    jest.setSystemTime(Date.now() + 60_000);
 
     expect(circuitBreaker.canRequest(domain)).toBe(true);
   });
@@ -59,8 +59,8 @@ describe('CircuitBreaker', () => {
     }
     expect(circuitBreaker.canRequest(domain)).toBe(false);
 
-    // Advance time by 59 seconds — should still be tripped
-    jest.advanceTimersByTime(59_000);
+    // Advance system time by 59 seconds — should still be tripped
+    jest.setSystemTime(Date.now() + 59_000);
 
     expect(circuitBreaker.canRequest(domain)).toBe(false);
   });
@@ -99,7 +99,7 @@ describe('CircuitBreaker', () => {
     expect(circuitBreaker.canRequest(domain)).toBe(false);
 
     // Reset
-    jest.advanceTimersByTime(60_000);
+    jest.setSystemTime(Date.now() + 60_000);
     expect(circuitBreaker.canRequest(domain)).toBe(true);
 
     // Trip again
