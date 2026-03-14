@@ -1,35 +1,34 @@
 import { db } from '../index.js';
 
 export const pageRepository = {
-  // Upsert a scrape_page row and return the id.
-  // Prisma doesn't support upsert on non-unique sourceUrl easily, so we
-  // use findFirst then create (sourceUrl is not globally unique — same URL
-  // can be scraped by different jobs).
   async upsert(
     jobId: string,
     sourceUrl: string,
     title: string | null,
     description: string | null,
   ): Promise<bigint> {
-    const existing = await db.scrapePage.findFirst({
-      where: { jobId, sourceUrl },
-      select: { id: true },
-    });
+    // Atomic insert — ignore duplicate (jobId, sourceUrl) pairs
+    await db.$executeRawUnsafe(
+      `INSERT IGNORE INTO scrape_pages (job_id, source_url, title, description, scraped_at)
+       VALUES (?, ?, ?, ?, NOW(3))`,
+      jobId,
+      sourceUrl,
+      title,
+      description,
+    );
 
-    if (existing !== null) {
-      // Update metadata in case it changed (re-scrape scenario)
-      await db.scrapePage.update({
-        where: { id: existing.id },
-        data: { title, description },
-      });
-      return existing.id;
+    // Fetch the id (either newly inserted or existing row)
+    const rows = (await db.$queryRawUnsafe(
+      `SELECT id FROM scrape_pages WHERE job_id = ? AND source_url = ? LIMIT 1`,
+      jobId,
+      sourceUrl,
+    )) as Array<{ id: bigint }>;
+
+    const row = rows[0];
+    if (row === undefined) {
+      throw new Error(`ScrapePage row not found after upsert: jobId=${jobId} sourceUrl=${sourceUrl}`);
     }
 
-    const created = await db.scrapePage.create({
-      data: { jobId, sourceUrl, title, description },
-      select: { id: true },
-    });
-
-    return created.id;
+    return row.id;
   },
 };
