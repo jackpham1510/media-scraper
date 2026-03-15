@@ -17,10 +17,15 @@ function useDebounced<T>(value: T, delayMs: number): T {
 
 export function useMedia(filters: MediaFilters): UseQueryResult<MediaResponse> {
   const queryClient = useQueryClient();
-  const debouncedSearch = useDebounced(filters.search ?? '', 300);
+  const debouncedSearch = useDebounced(filters.search ?? '', 500);
+
+  // While the user is still typing, hold the page at 1 so we don't fetch
+  // the current page with a soon-to-be-stale search term.
+  const isDebouncing = (filters.search ?? '') !== debouncedSearch;
 
   const effectiveFilters: MediaFilters = {
     ...filters,
+    page: isDebouncing ? 1 : filters.page,
     search: debouncedSearch,
   };
 
@@ -29,13 +34,15 @@ export function useMedia(filters: MediaFilters): UseQueryResult<MediaResponse> {
   const queryResult = useQuery({
     queryKey,
     queryFn: () => api.getMedia(effectiveFilters),
-    placeholderData: (prev) => prev,
+    // Don't show stale data while debouncing a new search term
+    placeholderData: isDebouncing ? undefined : (prev) => prev,
+    enabled: !isDebouncing,
   });
 
-  // Prefetch next page when data is available and there are more pages.
-  // Depend on stable primitives instead of the effectiveFilters object reference
-  // to avoid firing on every render.
+  // Prefetch next page — but only when the search input has settled.
+  // Skipping during debounce prevents fetching page 2 for a stale search term.
   useEffect(() => {
+    if (isDebouncing) return;
     if (!queryResult.data?.pagination) return;
     const { page, totalPages } = queryResult.data.pagination;
     if (page >= totalPages) return;
@@ -47,6 +54,7 @@ export function useMedia(filters: MediaFilters): UseQueryResult<MediaResponse> {
       staleTime: 30_000,
     });
   }, [
+    isDebouncing,
     queryResult.data?.pagination?.page,
     queryResult.data?.pagination?.totalPages,
     effectiveFilters.limit,
