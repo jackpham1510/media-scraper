@@ -54,7 +54,7 @@ export const jobsRoutes: FastifyPluginAsync = async (app) => {
         urlsDone: job.urlsDone,
         urlsSpaDetected: job.urlsSpaDetected,
         urlsBrowserDone: job.urlsBrowserDone,
-        urlsBrowserPending: job.urlsSpaDetected - job.urlsBrowserDone,
+        urlsBrowserPending: Math.max(0, job.urlsSpaDetected - job.urlsBrowserDone),
         createdAt: job.createdAt.toISOString(),
         finishedAt: job.finishedAt !== null ? job.finishedAt.toISOString() : null,
       }));

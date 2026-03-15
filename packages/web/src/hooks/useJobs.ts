@@ -28,14 +28,19 @@ export function useJobs(
     const currentIds = new Set(query.data.data.map((j) => j.jobId));
     const prev = prevJobsRef.current;
 
-    for (const [jobId] of prev) {
+    let anyDeparted = false;
+    for (const [jobId, lastKnown] of prev) {
       if (!currentIds.has(jobId)) {
-        // Job left the active list — it completed or failed
-        void queryClient.invalidateQueries({ queryKey: ['media'] });
-        toast.success('Job completed', {
-          description: `Job ${jobId.slice(0, 8)}… finished`,
-        });
+        anyDeparted = true;
+        if (lastKnown.status === 'failed') {
+          toast.error('Job failed', { description: `Job ${jobId.slice(0, 8)}… failed` });
+        } else {
+          toast.success('Job completed', { description: `Job ${jobId.slice(0, 8)}… finished` });
+        }
       }
+    }
+    if (anyDeparted) {
+      void queryClient.invalidateQueries({ queryKey: ['media'] });
     }
 
     // Update snapshot

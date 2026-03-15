@@ -113,7 +113,10 @@ export function JobsDrawer({ open, onOpenChange }: JobsDrawerProps): React.JSX.E
 
   const handleTabChange = (tab: Tab): void => {
     setActiveTab(tab);
-    if (tab === 'done' && !historyEverOpened) setHistoryEverOpened(true);
+    if (tab === 'done') {
+      if (!historyEverOpened) setHistoryEverOpened(true);
+      setHistoryPage(1);
+    }
   };
 
   const currentQuery = activeTab === 'active' ? activeQuery : historyQuery;
@@ -130,10 +133,13 @@ export function JobsDrawer({ open, onOpenChange }: JobsDrawerProps): React.JSX.E
         </SheetHeader>
 
         {/* Tab bar */}
-        <div className="flex gap-1 mt-3 rounded-lg bg-muted p-1">
+        <div className="flex gap-1 mt-3 rounded-lg bg-muted p-1" role="tablist">
           {(['active', 'done'] as Tab[]).map((tab) => (
             <button
               key={tab}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
               onClick={() => handleTabChange(tab)}
               className={cn(
                 'flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors',
