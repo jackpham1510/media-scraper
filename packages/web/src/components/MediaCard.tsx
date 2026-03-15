@@ -13,11 +13,12 @@ export function MediaCard({ item, onClick }: MediaCardProps): React.JSX.Element 
   const { mediaUrl, mediaType, altText, sourceUrl } = item;
   const [imgError, setImgError] = useState(false);
 
-  let displayHost: string;
+  let displayUrl: string;
   try {
-    displayHost = new URL(sourceUrl).hostname;
+    const u = new URL(sourceUrl);
+    displayUrl = u.host + u.pathname + u.search + u.hash;
   } catch {
-    displayHost = sourceUrl.slice(0, 30);
+    displayUrl = sourceUrl.replace(/^https?:\/\//, '');
   }
 
   return (
@@ -76,7 +77,7 @@ export function MediaCard({ item, onClick }: MediaCardProps): React.JSX.Element 
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group/link"
           title={sourceUrl}
         >
-          <span className="truncate">{displayHost}</span>
+          <span className="truncate">{displayUrl}</span>
           <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
         </a>
         {altText !== null && altText !== '' && (

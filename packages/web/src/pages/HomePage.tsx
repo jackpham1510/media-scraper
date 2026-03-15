@@ -10,7 +10,6 @@ import { ScrapeModal } from '../components/ScrapeModal.js';
 import { JobsDrawer } from '../components/JobsDrawer.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
-import { Badge } from '../components/ui/badge.js';
 import { cn } from '../lib/utils.js';
 
 type TypeFilter = 'image' | 'video' | undefined;

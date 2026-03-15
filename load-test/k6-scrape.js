@@ -6,7 +6,7 @@ import { SharedArray } from 'k6/data';
 // URL pool — loaded from CSV at init time (shared across all VUs)
 // Override with: k6 run k6-scrape.js -e CSV_FILE=./my-urls.csv
 // ---------------------------------------------------------------------------
-const CSV_FILE = __ENV.CSV_FILE || './countries.csv';
+const CSV_FILE = __ENV.CSV_FILE || './wiki-100.csv';
 const URLS_PER_JOB = parseInt(__ENV.URLS_PER_JOB || '5', 10);
 
 const allUrls = new SharedArray('urls', function () {
