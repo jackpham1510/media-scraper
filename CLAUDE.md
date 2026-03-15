@@ -78,7 +78,6 @@ scraper/         — pure scraping logic (no framework dependencies)
   parser.ts         htmlparser2 SAX streaming (also collects SPA signals)
   spa-detector.ts   score-based SPA heuristic (pure function)
   retry.ts          exponential backoff
-  circuit-breaker.ts  per-domain failure tracking
 db/
   prisma/schema.prisma
   repositories/    — all DB access goes through here; no ad-hoc Prisma calls in routes

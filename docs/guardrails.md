@@ -101,7 +101,7 @@ onResult(result => batchBuffer.push(result)); // batch writer flushes at 500
 
 ## Testing
 
-- Unit tests for: scraping engine (parser, retry, circuit breaker), repositories (batch upsert, pagination).
+- Unit tests for: scraping engine (parser, retry), repositories (batch upsert, pagination).
 - Integration tests for: all API routes (POST /scrape, GET /scrape/:id, GET /media).
 - Load test: k6 script in `load-test/k6-scrape.js` — must pass before any deployment claim.
 - No mocking of the DB in integration tests — use a real MySQL instance (Docker).

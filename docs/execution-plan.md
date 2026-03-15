@@ -103,12 +103,6 @@ Estimated scope per milestone: 1–2 days of focused engineering.
 - [ ] Non-retryable: 404, 403, 401, 400, TLS errors
 - [ ] `body.dump()` on all non-success responses (critical for socket pool)
 
-#### Circuit Breaker (`src/scraper/circuit-breaker.ts`)
-- [ ] Per-domain state tracking
-- [ ] Trip at 10 failures within window
-- [ ] Reset after 60s
-- [ ] Singleton, shared across all concurrent requests
-
 #### Fast Processor (`src/worker/fast.processor.ts`)
 - [ ] Accept `{ jobId, browserFallback, maxScrollDepth, urls: Array<{id, url}> }` payload (IDs fetched at enqueue time)
 - [ ] Import and use `globalLimit` from `http-client.ts` — never create a new `pLimit()` instance
@@ -147,7 +141,6 @@ Estimated scope per milestone: 1–2 days of focused engineering.
 - [ ] Parser: extracts correct media from 5 representative HTML fixture files
 - [ ] SPA detector: scores correctly for known SPA patterns; returns false when mediaCount > 0
 - [ ] Retry: correctly retries on ECONNRESET, stops on 404
-- [ ] Circuit breaker: opens after 10 failures, resets after timeout
 - [ ] Fast processor: re-queues SPA URL when browserFallback=true; marks failed when false
 
 ### Done Criteria
@@ -342,7 +335,7 @@ Estimated scope per milestone: 1–2 days of focused engineering.
 | Milestone | Key Deliverables | Risk Level |
 |-----------|-----------------|-----------|
 | 1 — Foundation | Repo, Docker, DB schema, TypeScript setup | Low |
-| 2 — Scraper Engine | undici + htmlparser2 + p-limit + circuit breaker | **High** (performance-critical) |
+| 2 — Scraper Engine | undici + htmlparser2 + p-limit | **High** (performance-critical) |
 | 3 — API Layer | Fastify routes, BullMQ integration, async job flow | Medium |
 | 4 — DB Layer | Prisma, repositories, batch upsert, indexes | Medium |
 | 5 — Frontend | React gallery, job polling, filters, pagination | Low–Medium |

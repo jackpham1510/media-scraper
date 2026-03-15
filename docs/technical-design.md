@@ -672,10 +672,6 @@ Per-URL retry: exponential backoff, max 3 retries
   Retryable: ECONNRESET, ETIMEDOUT, HTTP 429/500/502/503/504
   Not retried: HTTP 404, 403, 401, TLS errors
 
-Per-domain circuit breaker:
-  Open after 10 failures, reset after 60s
-  Prevents hammering a failing origin
-
 HTTP 429 handling:
   Respect Retry-After header
   Fall back to 5s wait if header absent
@@ -729,7 +725,6 @@ media-scraper/
 │   │   │   │   ├── http-client.ts         # undici agent setup
 │   │   │   │   ├── parser.ts              # htmlparser2 SAX streaming
 │   │   │   │   ├── spa-detector.ts        # score-based SPA heuristic
-│   │   │   │   ├── circuit-breaker.ts
 │   │   │   │   └── retry.ts
 │   │   │   ├── db/              # Prisma client + repositories
 │   │   │   │   ├── prisma/
