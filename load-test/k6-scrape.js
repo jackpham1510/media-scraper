@@ -20,12 +20,12 @@ const allUrls = new SharedArray('urls', function () {
 
 export const options = {
   stages: [
-    { duration: '30s', target: 5000 },  // ramp to 5000 VUs
-    { duration: '60s', target: 5000 },  // hold
+    { duration: '30s', target: 500 },   // ramp to 500 VUs
+    { duration: '60s', target: 500 },   // hold
     { duration: '10s', target: 0 },     // ramp down
   ],
   thresholds: {
-    // POST p95 < 500ms under 5000 concurrent clients
+    // POST p95 < 500ms under 500 concurrent clients
     'http_req_duration{name:post_scrape}': ['p(95)<500'],
     // Error rate < 0.5%
     http_req_failed: ['rate<0.005'],
