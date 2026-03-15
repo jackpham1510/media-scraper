@@ -4,6 +4,7 @@ import { parseEnv } from './config/env.js';
 import { healthRoutes } from './routes/health.js';
 import { scrapeRoutes } from './routes/scrape.js';
 import { mediaRoutes } from './routes/media.js';
+import { jobsRoutes } from './routes/jobs.js';
 import { closeWorkers } from './worker/index.js';
 import { closeBrowser } from './worker/playwright.singleton.js';
 import { httpAgent } from './scraper/http-client.js';
@@ -34,6 +35,7 @@ app.decorate('config', env);
 await app.register(healthRoutes);
 await app.register(scrapeRoutes);
 await app.register(mediaRoutes);
+await app.register(jobsRoutes);
 
 // Add x-request-id header to every response (Fastify auto-generates request.id)
 app.addHook('onSend', async (request, reply) => {
