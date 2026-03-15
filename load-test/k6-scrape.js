@@ -1,5 +1,22 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { SharedArray } from 'k6/data';
+
+// ---------------------------------------------------------------------------
+// URL pool — loaded from CSV at init time (shared across all VUs)
+// Override with: k6 run k6-scrape.js -e CSV_FILE=./my-urls.csv
+// ---------------------------------------------------------------------------
+const CSV_FILE = __ENV.CSV_FILE || './countries.csv';
+const URLS_PER_JOB = parseInt(__ENV.URLS_PER_JOB || '5', 10);
+
+const allUrls = new SharedArray('urls', function () {
+  // Skip header row, drop blank lines
+  return open(CSV_FILE)
+    .split('\n')
+    .slice(1)
+    .map((line) => line.trim())
+    .filter(Boolean);
+});
 
 export const options = {
   stages: [
@@ -17,22 +34,25 @@ export const options = {
   },
 };
 
-// 5 static URLs to scrape per VU (these are example placeholder URLs — note they won't resolve in a real test)
-const STATIC_URLS = [
-  'https://example.com/page1',
-  'https://example.com/page2',
-  'https://example.com/page3',
-  'https://example.com/page4',
-  'https://example.com/page5',
-];
-
 const API_BASE = __ENV.API_BASE || 'http://localhost:3001';
 
+/** Pick `count` URLs starting at a random offset (wraps around). */
+function pickUrls(count) {
+  const start = Math.floor(Math.random() * allUrls.length);
+  const urls = [];
+  for (let i = 0; i < count; i++) {
+    urls.push(allUrls[(start + i) % allUrls.length]);
+  }
+  return urls;
+}
+
 export default function () {
+  const urls = pickUrls(URLS_PER_JOB);
+
   // POST /api/scrape
   const postRes = http.post(
     `${API_BASE}/api/scrape`,
-    JSON.stringify({ urls: STATIC_URLS, options: { browserFallback: false } }),
+    JSON.stringify({ urls, options: { browserFallback: false } }),
     {
       headers: { 'Content-Type': 'application/json' },
       tags: { name: 'post_scrape' },
