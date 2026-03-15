@@ -1,4 +1,4 @@
-import type { JobStatus, MediaFilters, MediaResponse } from '../types.js';
+import type { JobStatus, JobListResponse, MediaFilters, MediaResponse } from '../types.js';
 
 const API_BASE = import.meta.env['VITE_API_BASE'] ?? '';
 
@@ -30,6 +30,19 @@ export const api = {
 
   async getJobStatus(jobId: string): Promise<JobStatus> {
     return request<JobStatus>(`/api/scrape/${encodeURIComponent(jobId)}`);
+  },
+
+  async getJobs(
+    status: 'active' | 'done',
+    page: number,
+    limit = 20,
+  ): Promise<JobListResponse> {
+    const params = new URLSearchParams({ status, page: String(page), limit: String(limit) });
+    return request<JobListResponse>(`/api/jobs?${params.toString()}`);
+  },
+
+  async getJobStats(): Promise<{ activeCount: number }> {
+    return request<{ activeCount: number }>('/api/jobs/stats');
   },
 
   async getMedia(filters: MediaFilters): Promise<MediaResponse> {

@@ -42,3 +42,8 @@ export interface MediaResponse {
   data: MediaItem[];
   pagination: Pagination;
 }
+
+export interface JobListResponse {
+  data: JobStatus[];
+  pagination: Pagination;
+}
