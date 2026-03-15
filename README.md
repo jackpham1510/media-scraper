@@ -33,24 +33,24 @@ npm run db:studio -w packages/api
 
 ```mermaid
 flowchart TD
-    Client["React SPA\n(Vite + React 19)"]
+    Client["React SPA (Vite + React 19)"]
 
     subgraph API ["Node.js Monolith (Fastify + TypeScript)"]
-        Routes["API Routes\nPOST /api/scrape\nGET  /api/scrape/:id\nGET  /api/media"]
-        FastWorker["FastScrapeWorker\nconcurrency: 2\np-limit(70) singleton\nundici + htmlparser2 SAX"]
-        BrowserWorker["BrowserScrapeWorker\nconcurrency: 1 (hard cap)\nPlaywright Chromium singleton"]
+        Routes["API Routes"]
+        FastWorker["FastScrapeWorker — concurrency 2 — p-limit(70) — undici + htmlparser2 SAX"]
+        BrowserWorker["BrowserScrapeWorker — concurrency 1 — Playwright Chromium singleton"]
     end
 
-    FastQ["scrape:fast\nBullMQ priority 1"]
-    BrowserQ["scrape:browser\nBullMQ priority 10 (lowest)"]
+    FastQ["scrape:fast — BullMQ priority 1"]
+    BrowserQ["scrape:browser — BullMQ priority 10 (lowest)"]
 
-    MySQL[("MySQL 8\nscrape data")]
-    Redis[("Redis 7\nBullMQ queues")]
+    MySQL[("MySQL 8")]
+    Redis[("Redis 7")]
 
-    Client -->|"POST /api/scrape → 202 jobId\nGET  /api/scrape/:id (poll)\nGET  /api/media (gallery)"| Routes
+    Client -->|"POST /api/scrape, GET /api/scrape/:id, GET /api/media"| Routes
     Routes -->|enqueue| FastQ
     FastQ --> FastWorker
-    FastWorker -->|"SPA detected\n+ browserFallback=true"| BrowserQ
+    FastWorker -->|"SPA detected + browserFallback=true"| BrowserQ
     BrowserQ --> BrowserWorker
     FastWorker -->|batch upsert| MySQL
     BrowserWorker -->|batch upsert| MySQL
