@@ -2,6 +2,7 @@ import type React from 'react';
 import { useState } from 'react';
 import { Loader2, Globe } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client.js';
 import { useJobStatus } from '../hooks/useJobStatus.js';
 import { Button } from './ui/button.js';
@@ -43,6 +44,7 @@ function statusVariant(s: JobStatusValue): 'default' | 'secondary' | 'warning' |
 }
 
 export function ScrapeModal({ open, onOpenChange, onJobStarted }: ScrapeModalProps): React.JSX.Element {
+  const queryClient = useQueryClient();
   const [urlsText, setUrlsText] = useState('');
   const [browserFallback, setBrowserFallback] = useState(false);
   const [maxScrollDepth, setMaxScrollDepth] = useState(10);
@@ -216,7 +218,10 @@ export function ScrapeModal({ open, onOpenChange, onJobStarted }: ScrapeModalPro
                 {jobStatus?.status === 'done' || jobStatus?.status === 'failed' ? 'Close' : 'New Scrape'}
               </Button>
               {(jobStatus?.status === 'done' || jobStatus?.status === 'failed') && (
-                <Button onClick={() => onOpenChange(false)}>View Gallery</Button>
+                <Button onClick={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['media'] });
+                  onOpenChange(false);
+                }}>View Gallery</Button>
               )}
             </DialogFooter>
           </div>
