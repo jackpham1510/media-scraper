@@ -7,7 +7,8 @@ import { SharedArray } from 'k6/data';
 // Override with: k6 run k6-scrape.js -e CSV_FILE=./my-urls.csv
 // ---------------------------------------------------------------------------
 const CSV_FILE = __ENV.CSV_FILE || './wiki-100.csv';
-const URLS_PER_JOB = parseInt(__ENV.URLS_PER_JOB || '5', 10);
+const URLS_PER_JOB = parseInt(__ENV.URLS_PER_JOB || '10', 10);
+const MAX_VUS = parseInt(__ENV.MAX_VUS || '500', 10);
 
 const allUrls = new SharedArray('urls', function () {
   // Skip header row, drop blank lines
@@ -20,9 +21,9 @@ const allUrls = new SharedArray('urls', function () {
 
 export const options = {
   stages: [
-    { duration: '30s', target: 500 },   // ramp to 500 VUs
-    { duration: '60s', target: 500 },   // hold
-    { duration: '10s', target: 0 },     // ramp down
+    { duration: '30s', target: MAX_VUS },   // ramp to MAX_VUS
+    { duration: '60s', target: MAX_VUS },   // hold
+    { duration: '10s', target: 0 },         // ramp down
   ],
   thresholds: {
     // POST p95 < 500ms under 500 concurrent clients
