@@ -2,7 +2,7 @@ import type React from 'react';
 import { useState } from 'react';
 import { Plus, Briefcase, Search, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMedia } from '../hooks/useMedia.js';
-import { useActiveJobs } from '../hooks/useActiveJobs.js';
+import { useJobStats } from '../hooks/useJobStats.js';
 import type { MediaFilters } from '../types.js';
 import { MediaGrid } from '../components/MediaGrid.js';
 import { MediaLightbox } from '../components/MediaLightbox.js';
@@ -23,7 +23,7 @@ export function HomePage(): React.JSX.Element {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  const { trackedJobs, addJob, removeJob } = useActiveJobs();
+  const { activeCount } = useJobStats();
 
   const filters: MediaFilters = {
     page,
@@ -45,10 +45,6 @@ export function HomePage(): React.JSX.Element {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setSearch(e.target.value);
     setPage(1);
-  };
-
-  const handleJobStarted = (jobId: string): void => {
-    addJob(jobId);
   };
 
   // Pagination helpers
@@ -87,8 +83,6 @@ export function HomePage(): React.JSX.Element {
     return pages;
   };
 
-  const activeJobCount = trackedJobs.length;
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -114,9 +108,9 @@ export function HomePage(): React.JSX.Element {
             >
               <Briefcase className="h-4 w-4" />
               <span className="hidden sm:inline">Activity</span>
-              {activeJobCount > 0 && (
+              {activeCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                  {activeJobCount}
+                  {activeCount}
                 </span>
               )}
             </Button>
@@ -216,14 +210,11 @@ export function HomePage(): React.JSX.Element {
       <ScrapeModal
         open={scrapeOpen}
         onOpenChange={setScrapeOpen}
-        onJobStarted={handleJobStarted}
       />
 
       <JobsDrawer
         open={jobsOpen}
         onOpenChange={setJobsOpen}
-        trackedJobs={trackedJobs}
-        onRemoveJob={removeJob}
       />
 
       {lightboxIndex !== null && data?.data !== undefined && data.data.length > 0 && (

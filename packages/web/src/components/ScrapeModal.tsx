@@ -20,7 +20,7 @@ import type { JobStatusValue } from '../types.js';
 interface ScrapeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onJobStarted: (jobId: string) => void;
+  onJobStarted?: (jobId: string) => void;
 }
 
 function statusLabel(s: JobStatusValue): string {
@@ -89,7 +89,7 @@ export function ScrapeModal({ open, onOpenChange, onJobStarted }: ScrapeModalPro
         ...(browserFallback ? { maxScrollDepth } : {}),
       });
       setActiveJobId(result.jobId);
-      onJobStarted(result.jobId);
+      onJobStarted?.(result.jobId);
       toast.info('Scrape job started', { description: `${urls.length} URL${urls.length !== 1 ? 's' : ''} queued` });
     } catch {
       setError('Failed to start scrape job. Please try again.');

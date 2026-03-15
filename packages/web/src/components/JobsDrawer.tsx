@@ -1,22 +1,17 @@
 import type React from 'react';
-import { useEffect, useRef } from 'react';
-import { X, Inbox } from 'lucide-react';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
-import { useJobStatus } from '../hooks/useJobStatus.js';
-import type { TrackedJob } from '../hooks/useActiveJobs.js';
-import type { JobStatusValue } from '../types.js';
+import { useState } from 'react';
+import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useJobs } from '../hooks/useJobs.js';
+import type { JobStatus, JobStatusValue } from '../types.js';
 import { Progress } from './ui/progress.js';
 import { Badge } from './ui/badge.js';
 import { Button } from './ui/button.js';
+import { cn } from '../lib/utils.js';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from './ui/sheet.js';
 
-interface JobRowProps {
-  trackedJob: TrackedJob;
-  onRemove: (jobId: string) => void;
-}
+type Tab = 'active' | 'done';
 
 function statusLabel(s: JobStatusValue): string {
   switch (s) {
@@ -38,76 +33,95 @@ function statusVariant(s: JobStatusValue): 'default' | 'secondary' | 'warning' |
   }
 }
 
-function JobRow({ trackedJob, onRemove }: JobRowProps): React.JSX.Element {
-  const { jobId } = trackedJob;
-  const { data: status } = useJobStatus(jobId);
-  const prevStatusRef = useRef<JobStatusValue | undefined>(undefined);
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const current = status?.status;
-    const prev = prevStatusRef.current;
-    if (current !== undefined && current !== prev && prev !== undefined) {
-      if (current === 'done') {
-        toast.success('Scraping complete', {
-          description: `Job ${jobId.slice(0, 8)}… finished — ${status?.urlsDone ?? 0} URLs scraped`,
-        });
-        void queryClient.invalidateQueries({ queryKey: ['media'] });
-      } else if (current === 'failed') {
-        toast.error('Scraping failed', { description: `Job ${jobId.slice(0, 8)}…` });
-      }
-    }
-    prevStatusRef.current = current;
-  }, [status?.status, jobId, status?.urlsDone]);
-
-  const progress = status ? Math.round((status.urlsDone / Math.max(status.urlsTotal, 1)) * 100) : 0;
-  const isDone = status?.status === 'done' || status?.status === 'failed';
-
+function JobRow({ job }: { job: JobStatus }): React.JSX.Element {
+  const progress = Math.round((job.urlsDone / Math.max(job.urlsTotal, 1)) * 100);
   return (
     <div className="rounded-lg border border-border bg-card p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-mono text-muted-foreground truncate flex-1">
-          {jobId.slice(0, 12)}…
+          {job.jobId.slice(0, 12)}…
         </span>
-        <div className="flex items-center gap-1.5">
-          {status && (
-            <Badge variant={statusVariant(status.status)} className="text-xs">
-              {statusLabel(status.status)}
-            </Badge>
-          )}
-          {isDone && (
-            <button
-              onClick={() => onRemove(jobId)}
-              className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground hover:bg-accent"
-              aria-label="Dismiss"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
+        <Badge variant={statusVariant(job.status)} className="text-xs">
+          {statusLabel(job.status)}
+        </Badge>
       </div>
-
-      {status && (
-        <>
-          <Progress value={progress} className="h-1.5" />
-          <p className="text-xs text-muted-foreground">
-            {status.urlsDone} / {status.urlsTotal} URLs
-            {status.urlsSpaDetected > 0 && ` · ${status.urlsBrowserPending} SPA pending`}
-          </p>
-        </>
+      <Progress value={progress} className="h-1.5" />
+      <p className="text-xs text-muted-foreground">
+        {job.urlsDone} / {job.urlsTotal} URLs
+        {job.urlsBrowserPending > 0 && ` · ${job.urlsBrowserPending} SPA pending`}
+      </p>
+      {job.finishedAt !== null && (
+        <p className="text-xs text-muted-foreground">
+          Finished {new Date(job.finishedAt).toLocaleTimeString()}
+        </p>
       )}
     </div>
   );
 }
 
-interface JobsDrawerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  trackedJobs: TrackedJob[];
-  onRemoveJob: (jobId: string) => void;
+function PaginationControls({
+  page,
+  totalPages,
+  onPage,
+}: {
+  page: number;
+  totalPages: number;
+  onPage: (p: number) => void;
+}): React.JSX.Element | null {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-1 pt-2 border-t">
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-7 w-7"
+        onClick={() => onPage(Math.max(1, page - 1))}
+        disabled={page === 1}
+      >
+        <ChevronLeft className="h-3.5 w-3.5" />
+      </Button>
+      <span className="text-xs text-muted-foreground px-2">
+        {page} / {totalPages}
+      </span>
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-7 w-7"
+        onClick={() => onPage(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+      >
+        <ChevronRight className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
 }
 
-export function JobsDrawer({ open, onOpenChange, trackedJobs, onRemoveJob }: JobsDrawerProps): React.JSX.Element {
+export interface JobsDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function JobsDrawer({ open, onOpenChange }: JobsDrawerProps): React.JSX.Element {
+  const [activeTab, setActiveTab] = useState<Tab>('active');
+  const [historyEverOpened, setHistoryEverOpened] = useState(false);
+
+  const [activePage, setActivePage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const activeQuery = useJobs('active', activePage);
+  const historyQuery = useJobs('done', historyPage, { enabled: historyEverOpened });
+
+  const handleTabChange = (tab: Tab): void => {
+    setActiveTab(tab);
+    if (tab === 'done' && !historyEverOpened) setHistoryEverOpened(true);
+  };
+
+  const currentQuery = activeTab === 'active' ? activeQuery : historyQuery;
+  const jobs = currentQuery.data?.data ?? [];
+  const totalPages = currentQuery.data?.pagination.totalPages ?? 1;
+  const page = activeTab === 'active' ? activePage : historyPage;
+  const setPage = activeTab === 'active' ? setActivePage : setHistoryPage;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-80 sm:max-w-sm flex flex-col">
@@ -115,33 +129,49 @@ export function JobsDrawer({ open, onOpenChange, trackedJobs, onRemoveJob }: Job
           <SheetTitle>Activity</SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto mt-4 space-y-3">
-          {trackedJobs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-2">
-              <Inbox className="h-8 w-8 opacity-40" />
-              <p className="text-sm">No active jobs</p>
-            </div>
-          ) : (
-            trackedJobs.map((job) => (
-              <JobRow key={job.jobId} trackedJob={job} onRemove={onRemoveJob} />
-            ))
-          )}
+        {/* Tab bar */}
+        <div className="flex gap-1 mt-3 rounded-lg bg-muted p-1">
+          {(['active', 'done'] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => handleTabChange(tab)}
+              className={cn(
+                'flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors',
+                activeTab === tab
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {tab === 'active' ? 'Active' : 'History'}
+            </button>
+          ))}
         </div>
 
-        {trackedJobs.length > 0 && (
-          <div className="pt-3 border-t">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                trackedJobs.forEach((j) => onRemoveJob(j.jobId));
-              }}
-            >
-              Clear All
-            </Button>
-          </div>
-        )}
+        {/* Content */}
+        <div className="flex flex-col flex-1 min-h-0 mt-3 gap-3">
+          {currentQuery.isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <p className="text-sm animate-pulse">Loading…</p>
+            </div>
+          ) : currentQuery.isError && jobs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <p className="text-sm text-destructive">Failed to load jobs</p>
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-2">
+              <Inbox className="h-8 w-8 opacity-40" />
+              <p className="text-sm">
+                {activeTab === 'active' ? 'No active jobs' : 'No completed jobs'}
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto space-y-3">
+              {jobs.map((job) => <JobRow key={job.jobId} job={job} />)}
+            </div>
+          )}
+
+          <PaginationControls page={page} totalPages={totalPages} onPage={setPage} />
+        </div>
       </SheetContent>
     </Sheet>
   );
