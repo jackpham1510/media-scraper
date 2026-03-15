@@ -297,7 +297,7 @@ k6 run --env API_BASE=http://localhost:3001 load-test/k6-scrape.js
 
 # JS package landing pages
 k6 run --env API_BASE=http://localhost:3001 \
-       --env CSV_FILE=./js-packages.csv \
+       --env CSV_FILE=./js-packages-100.csv \
        load-test/k6-scrape.js
 
 # Tune batch size

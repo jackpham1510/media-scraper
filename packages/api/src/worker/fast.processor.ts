@@ -41,6 +41,8 @@ async function flushBatch(buffer: MediaInput[]): Promise<void> {
 export async function fastProcessor(job: { data: FastJobPayload }): Promise<void> {
   const { jobId, browserFallback, maxScrollDepth, urls } = job.data;
 
+  console.log(`[fast] job=${jobId} started urls=${urls.length} browserFallback=${browserFallback}`);
+
   // Transition to 'running' at the start of processing (worker picked up the job)
   await jobRepository.updateStatus(jobId, 'running');
 
@@ -65,6 +67,7 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
           const result = await fetchUrl(url);
 
           if (isFetchError(result)) {
+            console.warn(`[fast] job=${jobId} url=${url} fetch_failed error=${result.error}`);
             await requestRepository.updateStatus(requestId, 'failed', undefined, result.error);
             await jobRepository.incrementUrlsDone(jobId, 1);
             return;
@@ -78,6 +81,7 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
 
           if (detectedAsSpa) {
             if (browserFallback) {
+              console.log(`[fast] job=${jobId} url=${url} spa_detected → queued for browser`);
               await requestRepository.updateStatus(requestId, 'spa_detected');
               await jobRepository.incrementUrlsSpaDetected(jobId, 1);
               spaCount++;
@@ -92,6 +96,7 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
                 { priority: 10 },
               );
             } else {
+              console.log(`[fast] job=${jobId} url=${url} spa_detected → no fallback, marked failed`);
               await requestRepository.updateStatus(requestId, 'failed', undefined, 'spa_detected');
               await jobRepository.incrementUrlsDone(jobId, 1);
             }
@@ -118,6 +123,7 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
             }
           }
 
+          console.log(`[fast] job=${jobId} url=${url} done media=${mediaItems.length}`);
           await requestRepository.updateStatus(requestId, 'done');
           await jobRepository.incrementUrlsDone(jobId, 1);
         }),
@@ -134,6 +140,7 @@ export async function fastProcessor(job: { data: FastJobPayload }): Promise<void
     // Final flush
     await flushBatch(mediaBatch);
 
+    console.log(`[fast] job=${jobId} complete spaQueued=${spaCount}`);
     // Transition job status atomically
     await jobRepository.transitionAfterFastComplete(jobId);
   } finally {

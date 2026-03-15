@@ -110,6 +110,8 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
   const { jobId, requestId, url, maxScrollDepth } = job.data;
   const requestIdBigInt = BigInt(requestId);
 
+  console.log(`[browser] job=${jobId} requestId=${requestId} url=${url} maxScrollDepth=${maxScrollDepth}`);
+
   const browser = await getBrowser();
   const page = await browser.newPage();
 
@@ -128,8 +130,10 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
       }
     });
 
+    console.log(`[browser] job=${jobId} navigating url=${url}`);
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.waitForTimeout(1_000);
+    console.log(`[browser] job=${jobId} scrolling steps=${maxScrollDepth}`);
     await autoScroll(page, maxScrollDepth);
 
     const pageTitle = await page.title();
@@ -143,6 +147,7 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
     });
 
     const rawMediaItems = await extractMediaFromPage(page);
+    console.log(`[browser] job=${jobId} url=${url} media_extracted=${rawMediaItems.length}`);
     const pageHtml = await page.content();
 
     const pageId = await pageRepository.upsert(
@@ -167,11 +172,13 @@ export async function browserProcessor(job: { data: BrowserJobPayload }): Promis
       await mediaRepository.upsertBatch(mediaInputs);
     }
 
+    console.log(`[browser] job=${jobId} url=${url} done`);
     await requestRepository.updateStatus(requestIdBigInt, 'done');
     await jobRepository.incrementUrlsDone(jobId, 1);
     await jobRepository.incrementUrlsBrowserDone(jobId);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(`[browser] job=${jobId} url=${url} failed error=${errorMessage}`);
     await requestRepository.updateStatus(requestIdBigInt, 'failed', undefined, errorMessage);
     // Still transition job counters even on failure so urlsDone reaches urlsTotal
     await jobRepository.incrementUrlsDone(jobId, 1);
