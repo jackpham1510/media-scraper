@@ -25,6 +25,7 @@ model ScrapeJob {
 
   @@index([status], name: "idx_status")
   @@index([createdAt], name: "idx_created_at")
+  @@index([finishedAt], name: "idx_finished_at")
   @@map("scrape_jobs")
 }
 
