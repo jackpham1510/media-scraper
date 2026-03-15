@@ -210,7 +210,6 @@ mkdir -p packages/api/src/{config,routes,worker,scraper,db/repositories,types}
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@fastify/rate-limit": "^9.0.0",
     "@prisma/client": "^5.11.0",
     "bullmq": "^5.4.0",
     "fastify": "^5.0.0",

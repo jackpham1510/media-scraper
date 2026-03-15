@@ -162,7 +162,6 @@ Body:
 
 202 → { "jobId": "uuid-v4" }
 400 → { "error": "urls must be a non-empty array of max 5000 items" }
-429 → { "error": "rate_limit_exceeded", "retryAfter": 60 }
 503 → { "error": "queue_full", "retryAfter": 30 }
 ```
 
@@ -227,9 +226,8 @@ Query: page, limit (max 100), type (image|video), search, jobId
 | HTML Parser | htmlparser2 (SAX) | Streaming; lowest memory; runs on main thread |
 | SPA Browser | Playwright Chromium | Singleton instance; concurrency 1 |
 | ORM | Prisma | TypeScript-first; auto-generated types |
-| DB | MySQL 8 | Required |
-| Cache / Queue | Redis 7 | BullMQ + rate-limit counters |
-| Rate Limiting | @fastify/rate-limit | Redis-backed; configurable via env vars |
+| DB | MySQL 8 | Primary data storage |
+| Cache / Queue | Redis 7 | BullMQ |
 
 ### Frontend
 

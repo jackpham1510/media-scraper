@@ -175,7 +175,7 @@ Start at N=100. Then tune empirically:
 | Unknown / mixed sites | 100–150 |
 | Small responses (< 5 KB) | 200–300 |
 | Large pages (> 100 KB) | 50–100 |
-| Single domain, rate-limited | 10–30 |
+| Single domain | 10–30 |
 
 ---
 

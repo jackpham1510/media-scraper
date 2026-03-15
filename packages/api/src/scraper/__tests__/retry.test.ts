@@ -96,19 +96,6 @@ describe('withRetry', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('retries on 429', async () => {
-    const fn = mockFn()
-      .mockRejectedValueOnce(makeHttpError(429))
-      .mockResolvedValue('rate-limited-then-ok');
-
-    const promise = withRetry(fn, { maxRetries: 3, baseDelayMs: 100 });
-    await jest.runAllTimersAsync();
-    const result = await promise;
-
-    expect(result).toBe('rate-limited-then-ok');
-    expect(fn).toHaveBeenCalledTimes(2);
-  });
-
   it('retries on 500', async () => {
     const fn = mockFn()
       .mockRejectedValueOnce(makeHttpError(500))

@@ -114,7 +114,6 @@ UV_THREADPOOL_SIZE=16   # prevents DNS bottleneck across many domains
 - Fastify on Node.js handles 20k+ simple req/s on 1 core; 5000 concurrent POSTs = no problem
 - Those 5000 jobs queue in Redis; the worker processes them with controlled concurrency (p-limit(100))
 - Clients poll `GET /scrape/:id/status` — lightweight DB reads, cached in Redis for 2s
-- Rate limiting on `POST /api/scrape` via `@fastify/rate-limit` (Redis-backed, configurable via env vars) prevents queue flooding
 
 ---
 
@@ -131,8 +130,7 @@ UV_THREADPOOL_SIZE=16   # prevents DNS bottleneck across many domains
 | HTML Parser | **htmlparser2** (SAX streaming) | Lowest memory; streaming pipeline |
 | ORM | **Prisma** | TypeScript-first; type-safe queries; auto migrations |
 | DB | MySQL 8 | Required |
-| Cache/Queue | Redis 7 | BullMQ + job status cache + rate limit counters |
-| Rate Limiting | @fastify/rate-limit | Redis-backed; configurable via `RATE_LIMIT_MAX` + `RATE_LIMIT_WINDOW` |
+| Cache/Queue | Redis 7 | BullMQ + job status cache |
 
 ### Frontend
 | Layer | Technology |
@@ -828,5 +826,4 @@ Load test script at: `load-test/k6-scrape.js`
 | 25 | `maxScrollDepth` configurable (default 10) | Prevents infinite scroll pages from running forever; power users can increase |
 | 26 | `data-src` / `data-lazy` extraction fallback | Captures lazy-load lib patterns where observer hasn't fired yet |
 | 27 | 5 MB response size cap | Prevents huge HTML files from holding p-limit slots; Content-Length fast path + stream guard |
-| 28 | Rate limiting via `@fastify/rate-limit` + Redis | 5000 clients × 5000 URLs = 25M queued without it; configurable via env vars |
-| 29 | Media lost on crash is acceptable | Simplifies processor — no transactional batch flush needed; explicitly documented |
+| 28 | Media lost on crash is acceptable | Simplifies processor — no transactional batch flush needed; explicitly documented |

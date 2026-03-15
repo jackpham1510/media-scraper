@@ -181,7 +181,6 @@ Estimated scope per milestone: 1–2 days of focused engineering.
 #### Routes (`src/routes/`)
 
 `POST /api/scrape`:
-- [ ] Register `@fastify/rate-limit` with Redis backend; read `RATE_LIMIT_MAX` + `RATE_LIMIT_WINDOW` from env via zod config
 - [ ] Check BullMQ queue depth against `QUEUE_MAX_DEPTH` env var; return 503 if exceeded
 - [ ] Validate body with Fastify JSON schema:
   - `urls`: array, 1–5000 items, each string must be a valid URL
