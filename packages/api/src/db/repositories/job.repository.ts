@@ -152,4 +152,49 @@ export const jobRepository = {
       id,
     );
   },
+
+  async findPaginated(filter: {
+    statuses: JobStatus[];
+    page: number;
+    limit: number;
+    orderBy: 'createdAt' | 'finishedAt';
+  }): Promise<{ rows: ScrapeJobDto[]; total: number }> {
+    if (filter.statuses.length === 0) return { rows: [], total: 0 };
+    const placeholders = filter.statuses.map(() => '?').join(', ');
+    const orderCol = filter.orderBy === 'finishedAt' ? 'finished_at' : 'created_at';
+    const offset = (filter.page - 1) * filter.limit;
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const [rawRows, rawCount]: [unknown, unknown] = await Promise.all([
+      db.$queryRawUnsafe(
+        `SELECT id, status, browser_fallback, max_scroll_depth,
+                urls_total, urls_done, urls_spa_detected, urls_browser_done,
+                created_at, finished_at
+         FROM scrape_jobs
+         WHERE status IN (${placeholders})
+         ORDER BY ${orderCol} DESC
+         LIMIT ? OFFSET ?`,
+        ...filter.statuses,
+        filter.limit,
+        offset,
+      ),
+      db.$queryRawUnsafe(
+        `SELECT COUNT(*) AS total FROM scrape_jobs WHERE status IN (${placeholders})`,
+        ...filter.statuses,
+      ),
+    ]);
+
+    const rows = (rawRows as RawJobRow[]).map(rowToDto);
+    const total = Number((rawCount as Array<{ total: bigint | number }>)[0]?.total ?? 0);
+    return { rows, total };
+  },
+
+  async countActive(): Promise<number> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const raw: unknown = await db.$queryRawUnsafe(
+      `SELECT COUNT(*) AS total FROM scrape_jobs
+       WHERE status IN ('pending', 'running', 'fast_complete')`,
+    );
+    return Number((raw as Array<{ total: bigint | number }>)[0]?.total ?? 0);
+  },
 };
