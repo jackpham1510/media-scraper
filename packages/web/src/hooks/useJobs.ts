@@ -15,7 +15,7 @@ export function useJobs(
   const query = useQuery<JobListResponse>({
     queryKey: ['jobList', status, page],
     queryFn: () => api.getJobs(status, page),
-    refetchInterval: status === 'active' ? 3000 : undefined,
+    refetchInterval: undefined,
     staleTime: status === 'done' ? Infinity : 0,
     retry: false,
     enabled: options?.enabled !== false,
