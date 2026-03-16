@@ -2,6 +2,19 @@
 
 Async web scraper that extracts images and videos from URLs at scale. Handles 500 concurrent API clients on 1 CPU / 1 GB RAM via a two-queue BullMQ pipeline with optional Playwright SPA fallback.
 
+## Demo
+
+[![Media Scraper Demo](http://img.youtube.com/vi/oRXCtdP4MtI/0.jpg)](http://www.youtube.com/watch?v=oRXCtdP4MtI "Media Scraper Demo")
+
+- [Watch in youtube](http://www.youtube.com/watch?v=oRXCtdP4MtI)
+
+## Load test result (k6)
+
+- Load: 500 VUs, each scrape 10 URLs -> 5000 URLs at the same time
+
+![Load test 1](./load-test/result/test-1.png)
+![Load test 1 result](./load-test/result/test-1-result.png)
+
 ---
 
 ## Quick Start
