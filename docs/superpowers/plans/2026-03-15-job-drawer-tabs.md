@@ -18,12 +18,12 @@
 |--------|------|----------------|
 | Modify | `packages/api/prisma/schema.prisma` | Add `idx_finished_at` index |
 | Modify | `packages/api/src/db/repositories/job.repository.ts` | Add `findPaginated`, `countActive` |
-| **Create** | `packages/api/src/routes/jobs.ts` | `GET /api/jobs/stats` and `GET /api/jobs` |
+| **Create** | `packages/api/src/routes/jobs.ts` | `GET /api/jobs` |
 | Modify | `packages/api/src/main.ts` | Register `jobsRoutes` |
 | **Create** | `packages/api/src/routes/jobs.test.ts` | Route unit tests (mocked repository) |
 | Modify | `packages/web/src/types.ts` | Add `JobListResponse` |
 | Modify | `packages/web/src/api/client.ts` | Add `getJobs`, `getJobStats` |
-| **Create** | `packages/web/src/hooks/useJobStats.ts` | Poll `/api/jobs/stats` every 3s |
+| ~~Create~~ | ~~`packages/web/src/hooks/useJobStats.ts`~~ | ~~Removed~~ |
 | **Create** | `packages/web/src/hooks/useJobs.ts` | Paginated job listing, transition detection |
 | Modify | `packages/web/src/components/JobsDrawer.tsx` | Full rewrite: tabs, pagination, server-driven |
 | Modify | `packages/web/src/pages/HomePage.tsx` | Remove `useActiveJobs`, simplify props |

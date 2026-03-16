@@ -12,12 +12,6 @@ interface JobsQuery {
 }
 
 export const jobsRoutes: FastifyPluginAsync = async (app) => {
-  // GET /api/jobs/stats — must be registered before GET /api/jobs to avoid shadowing
-  app.get('/api/jobs/stats', async (_request, reply) => {
-    const activeCount = await jobRepository.countActive();
-    return reply.send({ activeCount });
-  });
-
   // GET /api/jobs
   app.get<{ Querystring: JobsQuery }>(
     '/api/jobs',

@@ -188,13 +188,4 @@ export const jobRepository = {
     const total = Number((rawCount as Array<{ total: bigint | number }>)[0]?.total ?? 0);
     return { rows, total };
   },
-
-  async countActive(): Promise<number> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const raw: unknown = await db.$queryRawUnsafe(
-      `SELECT COUNT(*) AS total FROM scrape_jobs
-       WHERE status IN ('pending', 'running', 'fast_complete')`,
-    );
-    return Number((raw as Array<{ total: bigint | number }>)[0]?.total ?? 0);
-  },
 };

@@ -6,7 +6,6 @@ import type { FastifyInstance } from 'fastify';
 jest.unstable_mockModule('../db/repositories/job.repository.js', () => ({
   jobRepository: {
     findPaginated: jest.fn(),
-    countActive: jest.fn(),
   },
 }));
 
@@ -16,9 +15,6 @@ const { jobRepository } = await import('../db/repositories/job.repository.js');
 
 const mockFindPaginated = jobRepository.findPaginated as jest.MockedFunction<
   typeof jobRepository.findPaginated
->;
-const mockCountActive = jobRepository.countActive as jest.MockedFunction<
-  typeof jobRepository.countActive
 >;
 
 const makeJob = (overrides: object = {}) => ({
@@ -33,31 +29,6 @@ const makeJob = (overrides: object = {}) => ({
   createdAt: new Date('2026-01-01T00:00:00Z'),
   finishedAt: new Date('2026-01-01T00:01:00Z'),
   ...overrides,
-});
-
-describe('GET /api/jobs/stats', () => {
-  let app: FastifyInstance;
-
-  beforeEach(async () => {
-    app = Fastify({ logger: false });
-    await app.register(jobsRoutes);
-    await app.ready();
-  });
-
-  afterEach(async () => {
-    await app.close();
-    jest.clearAllMocks();
-  });
-
-  it('returns activeCount from repository', async () => {
-    mockCountActive.mockResolvedValue(3);
-
-    const res = await app.inject({ method: 'GET', url: '/api/jobs/stats' });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ activeCount: 3 });
-    expect(mockCountActive).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('GET /api/jobs', () => {

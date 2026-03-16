@@ -2,7 +2,6 @@ import type React from 'react';
 import { useState } from 'react';
 import { Plus, Briefcase, Search, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMedia } from '../hooks/useMedia.js';
-import { useJobStats } from '../hooks/useJobStats.js';
 import type { MediaFilters } from '../types.js';
 import { MediaGrid } from '../components/MediaGrid.js';
 import { MediaLightbox } from '../components/MediaLightbox.js';
@@ -22,8 +21,6 @@ export function HomePage(): React.JSX.Element {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(undefined);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-
-  const { activeCount } = useJobStats();
 
   const filters: MediaFilters = {
     page,
@@ -104,15 +101,10 @@ export function HomePage(): React.JSX.Element {
               variant="outline"
               size="sm"
               onClick={() => setJobsOpen(true)}
-              className="relative gap-2"
+              className="gap-2"
             >
               <Briefcase className="h-4 w-4" />
               <span className="hidden sm:inline">Activity</span>
-              {activeCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                  {activeCount}
-                </span>
-              )}
             </Button>
             <Button size="sm" onClick={() => setScrapeOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />

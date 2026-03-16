@@ -41,10 +41,6 @@ export const api = {
     return request<JobListResponse>(`/api/jobs?${params.toString()}`);
   },
 
-  async getJobStats(): Promise<{ activeCount: number }> {
-    return request<{ activeCount: number }>('/api/jobs/stats');
-  },
-
   async getMedia(filters: MediaFilters): Promise<MediaResponse> {
     const params = new URLSearchParams();
     if (filters.page !== undefined) params.set('page', String(filters.page));
