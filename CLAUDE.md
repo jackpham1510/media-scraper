@@ -147,6 +147,7 @@ Node is launched with: `--max-old-space-size=480 --max-semi-space-size=64`
 
 ### Database
 - All DB access goes through `db/repositories/`. No Prisma calls in routes or workers directly.
+- **Prefer Prisma client methods** (`findMany`, `create`, `update`, `count`, etc.) for standard CRUD operations. Only use raw queries (`$executeRawUnsafe` / `$queryRawUnsafe`) when the query is genuinely complex and cannot be expressed with Prisma's query API — e.g., atomic `CASE` expressions referencing current column values, bulk `INSERT ... ON DUPLICATE KEY UPDATE`, or `LAST_INSERT_ID()` in transactions.
 - Upsert pattern: `INSERT ... ON DUPLICATE KEY UPDATE` on `media_url_hash` (SHA-256 of URL).
 - Job status transitions use atomic single-statement `UPDATE ... SET status = CASE ... END WHERE ...` — never SELECT then UPDATE.
 - `scrape_request` rows are updated by primary key (ID passed in BullMQ job payload) — never scan by `url TEXT`.

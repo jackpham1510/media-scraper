@@ -20,39 +20,10 @@ export interface MediaItemDto {
   createdAt: Date;
 }
 
-// Raw row shape returned by $queryRawUnsafe for media_items
-interface RawMediaRow {
-  id: bigint;
-  page_id: bigint;
-  job_id: string;
-  source_url: string;
-  media_url: string;
-  media_type: string;
-  alt_text: string | null;
-  created_at: Date;
-}
-
-interface CountRow {
-  total: bigint;
-}
-
-function rowToDto(row: RawMediaRow): MediaItemDto {
-  return {
-    id: row.id,
-    pageId: row.page_id,
-    jobId: row.job_id,
-    sourceUrl: row.source_url,
-    mediaUrl: row.media_url,
-    mediaType: row.media_type as 'image' | 'video',
-    altText: row.alt_text,
-    createdAt: row.created_at,
-  };
-}
-
 export const mediaRepository = {
   // Bulk upsert up to 500 media items.
   // Deduplication via media_url_hash (SHA-256 of mediaUrl).
-  // Uses $executeRawUnsafe with a parameterized multi-row INSERT ... ON DUPLICATE KEY UPDATE.
+  // KEEP RAW: bulk INSERT ... ON DUPLICATE KEY UPDATE with dynamic value count
   async upsertBatch(items: MediaInput[]): Promise<void> {
     if (items.length === 0) return;
 
@@ -84,74 +55,74 @@ export const mediaRepository = {
     );
   },
 
-  // Paginated query with optional filters: type, search (FULLTEXT on alt_text), jobId.
+  // Paginated query with optional filters: type, search (LIKE on alt_text/source_url), jobId.
   async findPaginated(
     filters: MediaFilters,
   ): Promise<{ data: MediaItemDto[]; total: number }> {
     const { page, limit, type, search, jobId } = filters;
-    const offset = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-    // Build WHERE clause dynamically
-    const conditions: string[] = [];
-    const conditionParams: (string | number)[] = [];
+    // Build Prisma where clause dynamically
+    const where: {
+      jobId?: string;
+      mediaType?: 'image' | 'video';
+      OR?: Array<{ altText?: { contains: string }; sourceUrl?: { contains: string } }>;
+    } = {};
 
     if (jobId !== undefined) {
-      conditions.push('job_id = ?');
-      conditionParams.push(jobId);
+      where.jobId = jobId;
     }
 
     if (type !== undefined) {
-      conditions.push('media_type = ?');
-      conditionParams.push(type);
+      where.mediaType = type;
     }
 
     if (search !== undefined && search.length > 0) {
-      // Substring match on alt_text and source_url
-      conditions.push('(alt_text LIKE ? OR source_url LIKE ?)');
-      conditionParams.push(`%${search}%`, `%${search}%`);
+      where.OR = [
+        { altText: { contains: search } },
+        { sourceUrl: { contains: search } },
+      ];
     }
 
-    const whereClause =
-      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const dataQuery = `SELECT id, page_id, job_id, source_url, media_url, media_type, alt_text, created_at
-      FROM media_items
-      ${whereClause}
-      ORDER BY created_at DESC, id DESC
-      LIMIT ? OFFSET ?`;
-
-    const countQuery = `SELECT COUNT(*) AS total FROM media_items ${whereClause}`;
-
-    const [rawRows, rawCountRows] = await Promise.all([
-      db.$queryRawUnsafe(dataQuery, ...conditionParams, limit, offset) as Promise<unknown>,
-      db.$queryRawUnsafe(countQuery, ...conditionParams) as Promise<unknown>,
+    const [rows, total] = await Promise.all([
+      db.mediaItem.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit,
+        skip,
+      }),
+      db.mediaItem.count({ where }),
     ]);
-    const rows = rawRows as RawMediaRow[];
-    const countRows = rawCountRows as CountRow[];
-
-    const countRow = countRows[0];
-    const total = countRow !== undefined ? Number(countRow.total) : 0;
 
     return {
-      data: rows.map(rowToDto),
+      data: rows.map((row) => ({
+        id: row.id,
+        pageId: row.pageId,
+        jobId: row.jobId,
+        sourceUrl: row.sourceUrl,
+        mediaUrl: row.mediaUrl,
+        mediaType: row.mediaType,
+        altText: row.altText,
+        createdAt: row.createdAt,
+      })),
       total,
     };
   },
 
   // Fetch a single media item by ID.
   async findById(id: bigint): Promise<MediaItemDto | null> {
-    const rawRows: unknown = await db.$queryRawUnsafe(
-      `SELECT id, page_id, job_id, source_url, media_url, media_type, alt_text, created_at
-       FROM media_items
-       WHERE id = ?
-       LIMIT 1`,
-      id,
-    );
-    const rows = rawRows as RawMediaRow[];
+    const row = await db.mediaItem.findUnique({ where: { id } });
+    if (row === null) return null;
 
-    const row = rows[0];
-    if (row === undefined) return null;
-
-    return rowToDto(row);
+    return {
+      id: row.id,
+      pageId: row.pageId,
+      jobId: row.jobId,
+      sourceUrl: row.sourceUrl,
+      mediaUrl: row.mediaUrl,
+      mediaType: row.mediaType,
+      altText: row.altText,
+      createdAt: row.createdAt,
+    };
   },
 };

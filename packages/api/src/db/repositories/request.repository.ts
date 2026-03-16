@@ -10,7 +10,7 @@ interface RawRequestRow {
 
 export const requestRepository = {
   // Bulk insert scrape_requests and return inserted IDs with their URLs.
-  // Uses $executeRawUnsafe for performance, then fetches by jobId to get assigned IDs.
+  // KEEP RAW: bulk insert + LAST_INSERT_ID() + contiguous range select in transaction
   async bulkInsert(
     jobId: string,
     urls: string[],
@@ -60,34 +60,13 @@ export const requestRepository = {
     spaScore?: number,
     error?: string,
   ): Promise<void> {
-    if (spaScore !== undefined && error !== undefined) {
-      await db.$executeRawUnsafe(
-        `UPDATE scrape_requests SET status = ?, spa_score = ?, error = ? WHERE id = ?`,
+    await db.scrapeRequest.update({
+      where: { id },
+      data: {
         status,
-        spaScore,
-        error,
-        id,
-      );
-    } else if (spaScore !== undefined) {
-      await db.$executeRawUnsafe(
-        `UPDATE scrape_requests SET status = ?, spa_score = ? WHERE id = ?`,
-        status,
-        spaScore,
-        id,
-      );
-    } else if (error !== undefined) {
-      await db.$executeRawUnsafe(
-        `UPDATE scrape_requests SET status = ?, error = ? WHERE id = ?`,
-        status,
-        error,
-        id,
-      );
-    } else {
-      await db.$executeRawUnsafe(
-        `UPDATE scrape_requests SET status = ? WHERE id = ?`,
-        status,
-        id,
-      );
-    }
+        ...(spaScore !== undefined && { spaScore }),
+        ...(error !== undefined && { error }),
+      },
+    });
   },
 };

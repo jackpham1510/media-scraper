@@ -14,35 +14,6 @@ export interface ScrapeJobDto {
   finishedAt: Date | null;
 }
 
-// Raw row shape returned by $queryRawUnsafe for scrape_jobs
-interface RawJobRow {
-  id: string;
-  status: string;
-  browser_fallback: number | boolean;
-  max_scroll_depth: number;
-  urls_total: number;
-  urls_done: number;
-  urls_spa_detected: number;
-  urls_browser_done: number;
-  created_at: Date;
-  finished_at: Date | null;
-}
-
-function rowToDto(row: RawJobRow): ScrapeJobDto {
-  return {
-    id: row.id,
-    status: row.status as JobStatus,
-    browserFallback: Boolean(row.browser_fallback),
-    maxScrollDepth: Number(row.max_scroll_depth),
-    urlsTotal: Number(row.urls_total),
-    urlsDone: Number(row.urls_done),
-    urlsSpaDetected: Number(row.urls_spa_detected),
-    urlsBrowserDone: Number(row.urls_browser_done),
-    createdAt: row.created_at,
-    finishedAt: row.finished_at,
-  };
-}
-
 export const jobRepository = {
   async create(
     id: string,
@@ -50,53 +21,35 @@ export const jobRepository = {
     browserFallback: boolean,
     maxScrollDepth: number,
   ): Promise<void> {
-    await db.$executeRawUnsafe(
-      `INSERT INTO scrape_jobs (id, status, browser_fallback, max_scroll_depth, urls_total)
-       VALUES (?, 'pending', ?, ?, ?)`,
-      id,
-      browserFallback ? 1 : 0,
-      maxScrollDepth,
-      urlsTotal,
-    );
+    await db.scrapeJob.create({
+      data: { id, status: 'pending', browserFallback, maxScrollDepth, urlsTotal },
+    });
   },
 
   async updateStatus(id: string, status: JobStatus, finishedAt?: Date): Promise<void> {
-    if (finishedAt !== undefined) {
-      await db.$executeRawUnsafe(
-        `UPDATE scrape_jobs SET status = ?, finished_at = ? WHERE id = ?`,
-        status,
-        finishedAt,
-        id,
-      );
-    } else {
-      await db.$executeRawUnsafe(
-        `UPDATE scrape_jobs SET status = ? WHERE id = ?`,
-        status,
-        id,
-      );
-    }
+    await db.scrapeJob.update({
+      where: { id },
+      data: { status, ...(finishedAt !== undefined && { finishedAt }) },
+    });
   },
 
-  // Atomic increment: UPDATE ... SET urls_done = urls_done + ? WHERE id = ?
   async incrementUrlsDone(id: string, count: number): Promise<void> {
-    await db.$executeRawUnsafe(
-      `UPDATE scrape_jobs SET urls_done = urls_done + ? WHERE id = ?`,
-      count,
-      id,
-    );
+    await db.scrapeJob.update({
+      where: { id },
+      data: { urlsDone: { increment: count } },
+    });
   },
 
-  // Atomic increment for spa detected count
   async incrementUrlsSpaDetected(id: string, count: number): Promise<void> {
-    await db.$executeRawUnsafe(
-      `UPDATE scrape_jobs SET urls_spa_detected = urls_spa_detected + ? WHERE id = ?`,
-      count,
-      id,
-    );
+    await db.scrapeJob.update({
+      where: { id },
+      data: { urlsSpaDetected: { increment: count } },
+    });
   },
 
   // Atomic increment for browser done count.
   // When urls_browser_done + 1 >= urls_spa_detected, transitions status to 'done'.
+  // KEEP RAW: atomic CASE expression with self-referencing columns + conditional status transition
   async incrementUrlsBrowserDone(id: string): Promise<void> {
     await db.$executeRawUnsafe(
       `UPDATE scrape_jobs
@@ -115,28 +68,15 @@ export const jobRepository = {
   },
 
   async findById(id: string): Promise<ScrapeJobDto | null> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const rawRows: unknown = await db.$queryRawUnsafe(
-      `SELECT id, status, browser_fallback, max_scroll_depth,
-              urls_total, urls_done, urls_spa_detected, urls_browser_done,
-              created_at, finished_at
-       FROM scrape_jobs
-       WHERE id = ?
-       LIMIT 1`,
-      id,
-    );
-    const rows = rawRows as RawJobRow[];
-
-    const row = rows[0];
-    if (row === undefined) return null;
-
-    return rowToDto(row);
+    const row = await db.scrapeJob.findUnique({ where: { id } });
+    if (row === null) return null;
+    return row;
   },
 
   // Atomic status transition after the fast queue finishes all URLs for a job.
   // If urls_spa_detected > 0 → 'fast_complete' (browser queue still has work).
   // If urls_spa_detected = 0 → 'done'.
-  // Condition: only transitions if current status is 'running'.
+  // KEEP RAW: atomic CASE expression referencing current column values + conditional WHERE
   async transitionAfterFastComplete(id: string): Promise<void> {
     await db.$executeRawUnsafe(
       `UPDATE scrape_jobs
@@ -160,32 +100,16 @@ export const jobRepository = {
     orderBy: 'createdAt' | 'finishedAt';
   }): Promise<{ rows: ScrapeJobDto[]; total: number }> {
     if (filter.statuses.length === 0) return { rows: [], total: 0 };
-    const placeholders = filter.statuses.map(() => '?').join(', ');
-    const orderCol = filter.orderBy === 'finishedAt' ? 'finished_at' : 'created_at';
-    const offset = (filter.page - 1) * filter.limit;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const [rawRows, rawCount]: [unknown, unknown] = await Promise.all([
-      db.$queryRawUnsafe(
-        `SELECT id, status, browser_fallback, max_scroll_depth,
-                urls_total, urls_done, urls_spa_detected, urls_browser_done,
-                created_at, finished_at
-         FROM scrape_jobs
-         WHERE status IN (${placeholders})
-         ORDER BY ${orderCol} DESC
-         LIMIT ? OFFSET ?`,
-        ...filter.statuses,
-        filter.limit,
-        offset,
-      ),
-      db.$queryRawUnsafe(
-        `SELECT COUNT(*) AS total FROM scrape_jobs WHERE status IN (${placeholders})`,
-        ...filter.statuses,
-      ),
+    const where = { status: { in: filter.statuses } };
+    const orderBy = { [filter.orderBy]: 'desc' as const };
+    const skip = (filter.page - 1) * filter.limit;
+
+    const [rows, total] = await Promise.all([
+      db.scrapeJob.findMany({ where, orderBy, take: filter.limit, skip }),
+      db.scrapeJob.count({ where }),
     ]);
 
-    const rows = (rawRows as RawJobRow[]).map(rowToDto);
-    const total = Number((rawCount as Array<{ total: bigint | number }>)[0]?.total ?? 0);
     return { rows, total };
   },
 };
